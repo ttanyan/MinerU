@@ -51,23 +51,36 @@ def md_to_markmap_html(md_content):
     <body>
         <svg id="mindmap"></svg>
         <script>
-            setTimeout(() => {{
-                console.log("Markmap is ready.",window);
-            }}, 10000);
-            const {{ Markmap, loadCSS, loadJS, Transformer }} = window.markmap;
-            const transformer = new Transformer();
-            const {{ root, features }} = transformer.transform(`{safe_md}`);
-            const {{ styles, scripts }} = transformer.getAssets();
+            // 等待页面完全加载后再初始化
+            document.addEventListener('DOMContentLoaded', function() {{
+                try {{
+                    const {{ Markmap, loadCSS, loadJS, Transformer }} = window.markmap;
+                    const transformer = new Transformer();
+                    const {{ root, features }} = transformer.transform(`{safe_md}`);
+                    const {{ styles, scripts }} = transformer.getAssets();
 
-            if (styles) loadCSS(styles);
-            if (scripts) loadJS(scripts);
+                    if (styles) loadCSS(styles);
+                    if (scripts) loadJS(scripts);
 
-            const mm = Markmap.create('#mindmap', null, root);
+                    // 增加延迟确保资源加载完成
+                    setTimeout(() => {{
+                        const mm = Markmap.create('#mindmap', {{
+                            autoFit: true,
+                            fitRatio: 0.9,
+                            initialExpandLevel: -1
+                        }}, root);
 
-            // 添加工具栏（可选）
-            const {{ renderToolbar }} = window.markmap;
-            const toolbar = renderToolbar(mm);
-            document.body.append(toolbar);
+                        // 添加错误处理
+                        if (mm) {{
+                            console.log("Markmap created successfully");
+                        }} else {{
+                            console.error("Failed to create Markmap");
+                        }}
+                    }}, 500); // 延迟500毫秒以确保资源加载
+                }} catch (error) {{
+                    console.error('Error initializing markmap:', error);
+                }}
+            }});
         </script>
     </body>
     </html>
@@ -76,9 +89,10 @@ def md_to_markmap_html(md_content):
     # 使用 iframe 封装，彻底解决渲染失效问题
     iframe_srcdoc = full_html.replace('"', '&quot;')
     iframe_code = f"""
-    <iframe srcdoc="{iframe_srcdoc}" style="width: 100%; height: 800px; border: 1px solid #ddd; border-radius: 8px;"></iframe>
+    <iframe srcdoc="{iframe_srcdoc}" style="width: 100%; height: 800px; border: 1px solid #ddd; border-radius: 8px;" sandbox="allow-scripts"></iframe>
     """
     return iframe_code
+
 
 
 async def parse_pdf(doc_path, output_dir, end_page_id, is_ocr, formula_enable, table_enable, language, backend, url):
@@ -150,25 +164,31 @@ def replace_image_with_base64(markdown_text, image_dir_path):
 
 async def to_markdown(file_path, end_pages=10, is_ocr=False, formula_enable=True, table_enable=True, language="ch",
                       backend="pipeline", url=None):
+    # 如果language包含()，则提取括号前的内容作为实际语言
     if '(' in language and ')' in language:
         language = language.split('(')[0].strip()
     file_path = to_pdf(file_path)
+    # 获取识别的md文件以及压缩包文件路径
     local_md_dir, file_name = await parse_pdf(file_path, './output', end_pages - 1, is_ocr, formula_enable,
                                               table_enable, language, backend, url)
     archive_zip_path = os.path.join('./output', str_sha256(local_md_dir) + '.zip')
     zip_archive_success = compress_directory_to_zip(local_md_dir, archive_zip_path)
-
+    if zip_archive_success == 0:
+        logger.info('Compression successful')
+    else:
+        logger.error('Compression failed')
     md_path = os.path.join(local_md_dir, file_name + '.md')
     with open(md_path, 'r', encoding='utf-8') as f:
         txt_content = f.read()
     md_content = replace_image_with_base64(txt_content, local_md_dir)
+
+    # 生成思维导图HTML - 使用新的实现
+    mind_map_html = md_to_markmap_html(txt_content)
+
+    # 返回转换后的PDF路径
     new_pdf_path = os.path.join(local_md_dir, file_name + '_layout.pdf')
 
-    # 生成思维导图渲染代码
-    mindmap_html = md_to_markmap_html(txt_content)
-
-    return md_content, txt_content, archive_zip_path, new_pdf_path, mindmap_html
-
+    return md_content, txt_content, archive_zip_path, new_pdf_path, mind_map_html
 
 latex_delimiters_type_all = [
     {'left': '$$', 'right': '$$', 'display': True},
@@ -432,7 +452,8 @@ def main(ctx,
             logger.exception(e)
 
     suffixes = [f".{suffix}" for suffix in pdf_suffixes + image_suffixes]
-    with gr.Blocks() as demo:
+    with gr.Blocks(title="多模态思维导图助手",
+                   fill_height=True) as demo:
         # gr.HTML(header)
         gr.HTML("<h1 style='text-align: center;'>多模态思维导图助手</h1>")
         with gr.Row():
@@ -532,7 +553,9 @@ def main(ctx,
         server_name=server_name,
         server_port=server_port,
         show_api=api_enable,
-        i18n=i18n
+        i18n=i18n,
+        # title = "多模态思维导图助手",
+        # favicon_path = "logo.png"
     )
 
 
