@@ -94,6 +94,55 @@ def md_to_markmap_html(md_content):
     return iframe_code
 
 
+# ────────────── 新增：根据上一级标题自动补全下一级标题 ──────────────
+def auto_promote_paragraphs_to_subheading(text):
+    lines = text.splitlines()
+    result = []
+    in_section = False
+    empty_count = 0
+
+    for line in lines:
+        stripped = line.strip()
+
+        if stripped.startswith('# '):
+            result.append(line)
+            in_section = True
+            empty_count = 0
+            continue
+
+        if stripped.startswith('#'):
+            result.append(line)
+            in_section = False
+            empty_count = 0
+            continue
+
+        if not stripped:
+            result.append(line)
+            empty_count += 1
+            if empty_count >= 2:
+                in_section = False
+            continue
+
+        # 跳过图片、列表、代码等特殊行
+        if (
+                stripped.startswith('![') or
+                stripped.startswith('>') or
+                stripped.startswith('```') or
+                re.match(r'^[-*+] ', stripped) or
+                re.match(r'^\d+\. ', stripped)
+        ):
+            result.append(line)
+            empty_count = 0
+            continue
+
+        empty_count = 0
+        if in_section:
+            result.append('## ' + stripped)
+        else:
+            result.append(line)
+
+    return '\n'.join(result)
+
 
 async def parse_pdf(doc_path, output_dir, end_page_id, is_ocr, formula_enable, table_enable, language, backend, url):
     os.makedirs(output_dir, exist_ok=True)
@@ -180,6 +229,11 @@ async def to_markdown(file_path, end_pages=10, is_ocr=False, formula_enable=True
     md_path = os.path.join(local_md_dir, file_name + '.md')
     with open(md_path, 'r', encoding='utf-8') as f:
         txt_content = f.read()
+
+    # ────────────── 自动补全：根据 # 标题补全后续段落为 ## ──────────────
+    txt_content = auto_promote_paragraphs_to_subheading(txt_content)
+    # ────────────────────────────────────────────────────────────────
+
     md_content = replace_image_with_base64(txt_content, local_md_dir)
 
     # 生成思维导图HTML - 使用新的实现
@@ -189,6 +243,7 @@ async def to_markdown(file_path, end_pages=10, is_ocr=False, formula_enable=True
     new_pdf_path = os.path.join(local_md_dir, file_name + '_layout.pdf')
 
     return md_content, txt_content, archive_zip_path, new_pdf_path, mind_map_html
+
 
 latex_delimiters_type_all = [
     {'left': '$$', 'right': '$$', 'display': True},
@@ -288,13 +343,13 @@ def main(ctx,
     # 检测系统语言环境，默认为中文
     import locale
     import os
-    
+
     def detect_language():
         # 检查环境变量
         lang = os.getenv('LANG', '')
         if 'zh' in lang.lower() or 'chinese' in lang.lower():
             return 'zh'
-        
+
         # 检查系统默认locale
         try:
             default_locale = locale.getdefaultlocale()[0]
@@ -302,10 +357,10 @@ def main(ctx,
                 return 'zh'
         except:
             pass
-        
+
         # 默认返回中文
         return 'zh'
-    
+
     detected_lang = detect_language()
 
     # 创建 i18n 实例，支持中英文，默认为中文
