@@ -217,6 +217,10 @@ async def to_markdown(file_path, end_pages=10, is_ocr=False, formula_enable=True
     if '(' in language and ')' in language:
         language = language.split('(')[0].strip()
     file_path = to_pdf(file_path)
+    # 打印请求参数日志
+    logger.info(f"parse_pdf 请求参数: file_path={file_path}, output_dir='./output', end_page_id={end_pages - 1}, "
+                f"is_ocr={is_ocr}, formula_enable={formula_enable}, table_enable={table_enable}, "
+                f"language='{language}', backend='{backend}', url={url}")
     # 获取识别的md文件以及压缩包文件路径
     local_md_dir, file_name = await parse_pdf(file_path, './output', end_pages - 1, is_ocr, formula_enable,
                                               table_enable, language, backend, url)
