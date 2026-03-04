@@ -1,28 +1,26 @@
 <template>
-  <el-card class="config-panel">
-    <template #header>
-      <div class="card-header">
-        <span>{{ $t('config.title') }}</span>
-      </div>
-    </template>
+  <div class="config-panel">
+    <h3 class="panel-title">{{ $t('config.title') }}</h3>
     
-    <el-form :model="config" label-position="top" label-width="120px">
+    <el-form :model="config" label-position="top" label-width="120px" class="config-form">
       <!-- 最大页数 -->
-      <el-form-item :label="$t('config.maxPages')">
+      <el-form-item :label="$t('config.maxPages')" class="form-item">
         <el-slider 
           v-model="config.maxPages" 
           :min="1" 
           :max="1000" 
           show-input
+          class="slider"
         />
       </el-form-item>
       
       <!-- 解析后端 -->
-      <el-form-item :label="$t('config.backend')">
+      <el-form-item :label="$t('config.backend')" class="form-item">
         <el-select 
           v-model="config.backend" 
           style="width: 100%"
           @change="onBackendChange"
+          class="select"
         >
           <el-option
             v-for="option in backendOptions"
@@ -40,24 +38,26 @@
       <el-form-item 
         v-if="showServerUrl" 
         :label="$t('config.serverUrl')"
+        class="form-item"
       >
         <el-input 
           v-model="config.serverUrl" 
           :placeholder="'http://localhost:30000'"
+          class="input"
         />
         <div class="form-item-description">
           {{ $t('config.serverUrlInfo') }}
         </div>
       </el-form-item>
       
-      <el-divider />
+      <div class="divider"></div>
       
       <!-- 识别选项 -->
       <div class="section-title">{{ $t('config.recognitionOptions') }}</div>
       
       <!-- 表格识别 -->
-      <el-form-item>
-        <el-checkbox v-model="config.tableEnable">
+      <el-form-item class="form-item">
+        <el-checkbox v-model="config.tableEnable" class="checkbox">
           {{ $t('config.tableEnable') }}
         </el-checkbox>
         <div class="form-item-description">
@@ -66,8 +66,8 @@
       </el-form-item>
       
       <!-- 公式识别 -->
-      <el-form-item>
-        <el-checkbox v-model="config.formulaEnable">
+      <el-form-item class="form-item">
+        <el-checkbox v-model="config.formulaEnable" class="checkbox">
           {{ getFormulaLabel(config.backend) }}
         </el-checkbox>
         <div class="form-item-description">
@@ -77,11 +77,11 @@
       
       <!-- OCR选项 (非VLM后端时显示) -->
       <template v-if="!isVlmBackend">
-        <el-divider />
+        <div class="divider"></div>
         
         <!-- OCR语言 -->
-        <el-form-item :label="$t('config.ocrLanguage')">
-          <el-select v-model="config.language" style="width: 100%">
+        <el-form-item :label="$t('config.ocrLanguage')" class="form-item">
+          <el-select v-model="config.language" style="width: 100%" class="select">
             <el-option
               v-for="option in languageOptions"
               :key="option.value"
@@ -95,8 +95,8 @@
         </el-form-item>
         
         <!-- 强制OCR -->
-        <el-form-item>
-          <el-checkbox v-model="config.forceOcr">
+        <el-form-item class="form-item">
+          <el-checkbox v-model="config.forceOcr" class="checkbox">
             {{ $t('config.forceOcr') }}
           </el-checkbox>
           <div class="form-item-description">
@@ -105,7 +105,7 @@
         </el-form-item>
       </template>
     </el-form>
-  </el-card>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -179,24 +179,95 @@ const getBackendDescription = (backend: string) => {
 
 <style scoped>
 .config-panel {
+  margin-bottom: 24px;
+}
+
+.panel-title {
+  font-weight: 600;
+  font-size: 16px;
+  color: #303133;
+  margin: 0 0 20px 0;
+}
+
+.config-form {
+  width: 100%;
+}
+
+.form-item {
   margin-bottom: 20px;
 }
 
-.card-header {
+.form-item label {
+  font-size: 14px;
   font-weight: 500;
-  font-size: 16px;
+  color: #303133;
+  margin-bottom: 8px;
+}
+
+.divider {
+  height: 1px;
+  background-color: #E4E7ED;
+  margin: 24px 0;
 }
 
 .section-title {
   font-weight: 500;
-  margin: 20px 0 15px 0;
+  margin: 0 0 16px 0;
   color: #303133;
+  font-size: 14px;
 }
 
 .form-item-description {
   font-size: 12px;
   color: #909399;
-  margin-top: 5px;
+  margin-top: 8px;
   line-height: 1.4;
+}
+
+.slider :deep(.el-slider__runway) {
+  background-color: #E4E7ED;
+}
+
+.slider :deep(.el-slider__bar) {
+  background-color: #1677FF;
+}
+
+.slider :deep(.el-slider__button) {
+  border-color: #1677FF;
+}
+
+.select :deep(.el-select__input) {
+  color: #303133;
+}
+
+.select :deep(.el-select__wrapper) {
+  border: 1px solid #E4E7ED;
+  border-radius: 4px;
+  box-shadow: none;
+}
+
+.select :deep(.el-select__wrapper.is-focus) {
+  border-color: #1677FF;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.2);
+}
+
+.input :deep(.el-input__wrapper) {
+  border: 1px solid #E4E7ED;
+  border-radius: 4px;
+  box-shadow: none;
+}
+
+.input :deep(.el-input__wrapper.is-focus) {
+  border-color: #1677FF;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.2);
+}
+
+.checkbox :deep(.el-checkbox__input.is-checked .el-checkbox__inner) {
+  background-color: #1677FF;
+  border-color: #1677FF;
+}
+
+.checkbox :deep(.el-checkbox__label) {
+  color: #303133;
 }
 </style>

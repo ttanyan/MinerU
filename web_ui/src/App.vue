@@ -1,9 +1,6 @@
 <template>
   <div id="app">
     <el-container class="main-container">
-      <el-header class="header">
-        <h1>{{ $t('app.title') }}</h1>
-      </el-header>
       <el-main class="main-content">
         <DocumentProcessor />
       </el-main>
@@ -15,26 +12,34 @@
 import DocumentProcessor from './views/DocumentProcessor.vue'
 </script>
 
+<style>
+/* 全局样式 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #303133;
+  background-color: #F5F7FA;
+}
+
+#app {
+  height: 100vh;
+}
+</style>
+
 <style scoped>
 .main-container {
   height: 100vh;
 }
 
-.header {
-  background-color: #409eff;
-  color: white;
-  text-align: center;
-  line-height: 60px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.header h1 {
-  margin: 0;
-  font-size: 24px;
-}
-
 .main-content {
-  padding: 20px;
-  background-color: #f5f7fa;
+  padding: 40px;
+  background-color: #F5F7FA;
 }
 </style>

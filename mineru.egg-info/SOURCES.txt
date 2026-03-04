@@ -1,5 +1,3 @@
-LICENSE.md
-README.md
 pyproject.toml
 mineru/__init__.py
 mineru/version.py

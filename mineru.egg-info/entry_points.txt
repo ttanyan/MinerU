@@ -6,3 +6,4 @@ mineru-lmdeploy-server = mineru.cli.vlm_server:lmdeploy_server
 mineru-models-download = mineru.cli.models_download:download_models
 mineru-openai-server = mineru.cli.vlm_server:openai_server
 mineru-vllm-server = mineru.cli.vlm_server:vllm_server
+mineru-vue-dev = web_ui:start.sh

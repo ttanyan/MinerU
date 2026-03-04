@@ -85,3 +85,7 @@ vllm<0.12,>=0.10.1.1
 torch<3,>=2.6.0
 transformers!=4.57.2,<5.0.0,>=4.51.1
 accelerate>=1.5.1
+
+[vuex]
+nodejs>=16.0.0
+npm>=8.0.0
