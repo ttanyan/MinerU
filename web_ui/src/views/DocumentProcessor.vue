@@ -18,6 +18,7 @@
       
       <!-- 拖拽上传区 -->
       <div 
+        v-if="showUploadArea"
         class="drag-upload-area"
         :class="{ 'drag-over': isDragging }"
         @drop="handleDrop"
@@ -53,7 +54,7 @@
           </el-button>
           
           <el-button 
-            @click="clearAll"
+            @click="clearAllFiles"
             size="large"
             class="action-button secondary-button"
           >
@@ -148,6 +149,7 @@ const {
 const showSettings = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
 const isDragging = ref(false)
+const showUploadArea = ref(true)
 
 const toggleSettings = () => {
   showSettings.value = !showSettings.value
@@ -178,6 +180,8 @@ const handleFileInputChange = (event: Event) => {
     })
     // 清空input值，允许重复选择同一个文件
     input.value = ''
+    // 上传后隐藏上传区域
+    showUploadArea.value = false
   }
 }
 
@@ -190,11 +194,23 @@ const handleDrop = (event: DragEvent) => {
     files.forEach(file => {
       uploadedFiles.value.push(file)
     })
+    // 上传后隐藏上传区域
+    showUploadArea.value = false
   }
 }
 
 const removeFile = (index: number) => {
   uploadedFiles.value.splice(index, 1)
+  // 如果没有文件了，重新显示上传区域
+  if (uploadedFiles.value.length === 0) {
+    showUploadArea.value = true
+  }
+}
+
+// 重写clearAll函数，确保清除后显示上传区域
+const clearAllFiles = () => {
+  clearAll()
+  showUploadArea.value = true
 }
 
 const formatFileSize = (bytes: number): string => {
