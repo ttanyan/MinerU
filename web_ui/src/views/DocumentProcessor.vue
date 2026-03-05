@@ -6,6 +6,15 @@
         <h1 class="app-title">智能解析 <span class="subtitle">让文档内容为AI所用</span></h1>
         <div class="header-actions">
           <el-button 
+            v-if="isHeaderCollapsed"
+            type="primary" 
+            :icon="Upload"
+            @click="toggleUploadArea"
+            class="upload-toggle-button"
+          >
+            重新上传
+          </el-button>
+          <el-button 
             type="default" 
             :icon="Setting"
             @click="toggleSettings"
@@ -18,7 +27,7 @@
       
       <!-- 拖拽上传区 -->
       <div 
-        v-if="showUploadArea"
+        v-if="!isHeaderCollapsed"
         class="drag-upload-area"
         :class="{ 'drag-over': isDragging }"
         @drop="handleDrop"
@@ -26,7 +35,7 @@
         @dragleave="isDragging = false"
         @click="triggerUpload"
       >
-        <div class="drag-upload-content">
+        <div class="drag-upload-content" v-if="uploadedFiles.length === 0">
           <div class="file-icons">
             <el-icon class="file-icon pdf-icon"><Document /></el-icon>
             <el-icon class="file-icon word-icon"><Document /></el-icon>
@@ -35,12 +44,30 @@
           </div>
           <p class="drag-upload-text">支持 PDF、Word、Docker、PNG 文件格式，点击或拖拽文件至此上传</p>
         </div>
+        
+        <!-- 已上传文件显示在上传框内 -->
+        <div v-else class="uploaded-files-in-area">
+          <div class="file-card" v-for="(file, index) in uploadedFiles" :key="index">
+            <div class="file-info">
+              <el-icon class="file-icon"><Document /></el-icon>
+              <span class="file-name">{{ file.name }}</span>
+              <span class="file-size">({{ formatFileSize(file.size) }})</span>
+              <el-button 
+                type="danger" 
+                :icon="Delete" 
+                circle 
+                size="small"
+                @click.stop="removeFile(index)"
+                class="remove-button"
+              />
+            </div>
+          </div>
+        </div>
       </div>
       
-      <!-- 主内容区 -->
-      <div class="content-container">
-        <!-- 操作按钮 -->
-        <div class="action-buttons" v-if="uploadedFiles.length > 0">
+      <!-- 操作按钮区 -->
+      <div v-if="uploadedFiles.length > 0" class="action-buttons-container">
+        <div class="action-buttons">
           <el-button 
             type="primary" 
             size="large"
@@ -62,26 +89,10 @@
             {{ $t('common.clear') }}
           </el-button>
         </div>
-        
-        <!-- 已上传文件 -->
-        <div v-if="uploadedFiles.length > 0" class="uploaded-files">
-          <h3 class="files-title">已上传文件</h3>
-          <div class="file-card" v-for="(file, index) in uploadedFiles" :key="index">
-            <div class="file-info">
-              <el-icon class="file-icon"><Document /></el-icon>
-              <span class="file-name">{{ file.name }}</span>
-              <span class="file-size">({{ formatFileSize(file.size) }})</span>
-              <el-button 
-                type="danger" 
-                :icon="Delete" 
-                circle 
-                size="small"
-                @click="removeFile(index)"
-                class="remove-button"
-              />
-            </div>
-          </div>
-        </div>
+      </div>
+      
+      <!-- 主内容区 -->
+      <div class="content-container">
         
         <!-- 设置面板 -->
         <div v-if="showSettings" class="settings-panel">
@@ -141,7 +152,7 @@ const {
   backendOptions,
   languageOptions,
   clearAll,
-  processDocument,
+  processDocument: originalProcessDocument,
   getFormulaLabel,
   getFormulaInfo
 } = useDocumentProcessor()
@@ -149,10 +160,14 @@ const {
 const showSettings = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
 const isDragging = ref(false)
-const showUploadArea = ref(true)
+const isHeaderCollapsed = ref(false)
 
 const toggleSettings = () => {
   showSettings.value = !showSettings.value
+}
+
+const toggleUploadArea = () => {
+  isHeaderCollapsed.value = !isHeaderCollapsed.value
 }
 
 const handleBackendChange = (backend: string) => {
@@ -180,8 +195,7 @@ const handleFileInputChange = (event: Event) => {
     })
     // 清空input值，允许重复选择同一个文件
     input.value = ''
-    // 上传后隐藏上传区域
-    showUploadArea.value = false
+    // 上传后保持上传区域显示，只在点击转换后折叠
   }
 }
 
@@ -194,8 +208,7 @@ const handleDrop = (event: DragEvent) => {
     files.forEach(file => {
       uploadedFiles.value.push(file)
     })
-    // 上传后隐藏上传区域
-    showUploadArea.value = false
+    // 上传后保持上传区域显示，只在点击转换后折叠
   }
 }
 
@@ -203,14 +216,22 @@ const removeFile = (index: number) => {
   uploadedFiles.value.splice(index, 1)
   // 如果没有文件了，重新显示上传区域
   if (uploadedFiles.value.length === 0) {
-    showUploadArea.value = true
+    isHeaderCollapsed.value = false
   }
 }
 
 // 重写clearAll函数，确保清除后显示上传区域
 const clearAllFiles = () => {
   clearAll()
-  showUploadArea.value = true
+  isHeaderCollapsed.value = false
+}
+
+// 重写processDocument函数，在点击转换按钮后立即折叠上传区域
+const processDocument = async () => {
+  // 点击转换按钮后立即折叠上传区域
+  isHeaderCollapsed.value = true
+  // 调用useDocumentProcessor中的processDocument函数
+  await originalProcessDocument()
 }
 
 const formatFileSize = (bytes: number): string => {
@@ -277,6 +298,19 @@ const formatFileSize = (bytes: number): string => {
   transition: all 0.3s ease;
 }
 
+/* 重新上传按钮 */
+.upload-toggle-button {
+  background-color: #165DFF;
+  border-color: #165DFF;
+  color: #FFFFFF;
+  font-weight: 500;
+  border-radius: 6px;
+  height: 40px;
+  padding: 0 16px;
+  transition: all 0.3s ease;
+  margin-right: 16px;
+}
+
 .upload-button:hover {
   background-color: #0E42D2;
   border-color: #0E42D2;
@@ -318,6 +352,43 @@ const formatFileSize = (bytes: number): string => {
   padding: 48px 24px;
   text-align: center;
   cursor: pointer;
+  transition: all 0.3s ease;
+  overflow: hidden;
+  max-height: 200px;
+}
+
+/* 已上传文件容器 */
+.uploaded-files-container {
+  padding: 24px;
+  background-color: #FFFFFF;
+  border-bottom: 1px solid #EEEEEE;
+  transition: all 0.3s ease;
+}
+
+/* 已上传文件在上传框内显示 */
+.uploaded-files-in-area {
+  width: 100%;
+}
+
+.uploaded-files-in-area .file-card {
+  background-color: #F9FAFC;
+  border: 1px solid #E4E7ED;
+  border-radius: 6px;
+  padding: 16px;
+  margin-bottom: 16px;
+  transition: all 0.3s ease;
+}
+
+.uploaded-files-in-area .file-card:hover {
+  border-color: #165DFF;
+  box-shadow: 0 2px 8px rgba(22, 93, 255, 0.1);
+}
+
+/* 操作按钮区 */
+.action-buttons-container {
+  padding: 24px;
+  background-color: #FFFFFF;
+  border-bottom: 1px solid #EEEEEE;
   transition: all 0.3s ease;
 }
 
@@ -396,6 +467,7 @@ const formatFileSize = (bytes: number): string => {
   display: flex;
   flex-direction: column;
   gap: 24px;
+  min-height: 0;
 }
 
 /* 操作按钮 */
