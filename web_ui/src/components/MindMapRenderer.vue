@@ -67,10 +67,10 @@
 import { ref, computed, onMounted, watch, onUnmounted, nextTick } from 'vue'
 import { Download, Refresh, ZoomIn, ZoomOut, Document } from '@element-plus/icons-vue'
 
-// 为 window.Markmap 添加类型声明
+// 为 window.markmap 添加类型声明
 declare global {
   interface Window {
-    Markmap: any
+    markmap: any
   }
 }
 
@@ -86,6 +86,17 @@ let mmInstance: any = null
 let transformer: any = null
 const scale = ref(1)
 
+// 检查并初始化 Markmap
+const checkMarkmap = () => {
+  if (window.markmap) {
+    console.log('Markmap is loaded:', window.markmap)
+    return true
+  } else {
+    console.error('Markmap is not loaded')
+    return false
+  }
+}
+
 const nodeCount = computed(() => {
   if (!props.content) return 0
   // 简单计算节点数量（基于Markdown标题）
@@ -98,15 +109,16 @@ const initMarkmap = async () => {
   try {
     console.log('Initializing markmap with content:', props.content.substring(0, 100) + '...')
     
-    // 检查全局 Markmap 对象是否存在
-    if (!window.Markmap) {
-      console.error('Markmap is not loaded')
-      return
-    }
+    // 等待 DOM 更新
+    await nextTick()
+    
+    // 检查 Markmap 是否加载
+    if (!checkMarkmap()) return
     
     // 初始化 transformer
     if (!transformer) {
-      transformer = new window.Markmap.Transformer()
+      transformer = new window.markmap.Transformer()
+      console.log('Transformer initialized:', transformer)
     }
     
     // 1. 转换数据
@@ -114,7 +126,6 @@ const initMarkmap = async () => {
     console.log('Transformed root:', root)
 
     // 2. 创建或更新实例
-    await nextTick()
     console.log('SVG ref:', svgRef.value)
     
     if (mmInstance) {
@@ -123,7 +134,7 @@ const initMarkmap = async () => {
       mmInstance.fit()
     } else {
       console.log('Creating new instance')
-      mmInstance = window.Markmap.create(svgRef.value, {
+      mmInstance = window.markmap.create(svgRef.value, {
         autoFit: true,
         fitRatio: 0.9,
         initialExpandLevel: -1,
