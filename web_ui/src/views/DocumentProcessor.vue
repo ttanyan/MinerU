@@ -3,7 +3,7 @@
     <div class="workspace">
       <!-- 导航栏 -->
       <header class="nav-bar">
-        <h1 class="app-title">智能解析 <span class="subtitle">让文档内容为AI所用</span></h1>
+        <h1 class="app-title">思维导图 <span class="subtitle">让文档内容为AI所用</span></h1>
         <div class="header-actions">
           <el-button 
             v-if="isHeaderCollapsed"
@@ -42,7 +42,7 @@
             <el-icon class="file-icon docker-icon"><Document /></el-icon>
             <el-icon class="file-icon png-icon"><Picture /></el-icon>
           </div>
-          <p class="drag-upload-text">支持 PDF、Word、Docker、PNG 文件格式，点击或拖拽文件至此上传</p>
+          <p class="drag-upload-text">支持 PDF、Word、PNG 文件格式，点击或拖拽文件至此上传</p>
         </div>
         
         <!-- 已上传文件显示在上传框内 -->
