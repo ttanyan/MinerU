@@ -19,20 +19,20 @@
         <!-- 拖拽上传区 -->
         <div 
           class="drag-upload-area"
-          :class="{ 'drag-over': isDragging }"
+          :class="{ 'drag-over': isDragging, 'collapsed': isUploadAreaCollapsed }"
           @drop="handleDrop"
           @dragover.prevent="isDragging = true"
           @dragleave="isDragging = false"
           @click="triggerUpload"
         >
-          <div class="upload-content">
+          <div class="upload-content" v-show="!isUploadAreaCollapsed">
             <el-icon class="upload-icon"><Folder /></el-icon>
             <div class="upload-text">文件导入</div>
             <div class="upload-hint">支持PDF、Word、PNG格式文件，点击或拖拽文件至此处上传</div>
           </div>
           
           <!-- 已上传文件列表 -->
-          <div v-if="uploadedFiles.length > 0" class="uploaded-files">
+          <div class="uploaded-files">
             <div class="file-item" v-for="(file, index) in uploadedFiles" :key="index">
               <el-icon class="file-icon"><Document /></el-icon>
               <span class="file-name">{{ file.name }}</span>
@@ -50,7 +50,16 @@
         
         <!-- 设置面板 -->
         <div v-if="showSettings" class="settings-panel">
-          <h3 class="settings-title">设置</h3>
+          <div class="settings-header">
+            <h3 class="settings-title">设置</h3>
+            <el-button 
+              type="text" 
+              @click="toggleSettings"
+              class="close-button"
+            >
+              <el-icon><Close /></el-icon>
+            </el-button>
+          </div>
           <ConfigPanel 
             v-model="config"
             :backend-options="backendOptions"
@@ -124,7 +133,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Delete, Document, Folder, Setting } from '@element-plus/icons-vue'
+import { Delete, Document, Folder, Setting, Close } from '@element-plus/icons-vue'
 import ConfigPanel from '@/components/ConfigPanel.vue'
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 import MindMapRenderer from '@/components/MindMapRenderer.vue'
@@ -147,6 +156,7 @@ const showSettings = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
 const isDragging = ref(false)
 const activeTab = ref('markdown')
+const isUploadAreaCollapsed = ref(false)
 
 const toggleSettings = () => {
   showSettings.value = !showSettings.value
@@ -171,6 +181,8 @@ const handleFileInputChange = (event: Event) => {
     })
     // 清空input值，允许重复选择同一个文件
     input.value = ''
+    // 折叠上传区域
+    isUploadAreaCollapsed.value = true
     // 自动处理文件
     processDocument()
   }
@@ -185,6 +197,8 @@ const handleDrop = (event: DragEvent) => {
     files.forEach(file => {
       uploadedFiles.value.push(file)
     })
+    // 折叠上传区域
+    isUploadAreaCollapsed.value = true
     // 自动处理文件
     processDocument()
   }
@@ -192,12 +206,22 @@ const handleDrop = (event: DragEvent) => {
 
 const removeFile = (index: number) => {
   uploadedFiles.value.splice(index, 1)
+  // 如果没有文件了，展开上传区域
+  if (uploadedFiles.value.length === 0) {
+    isUploadAreaCollapsed.value = false
+  }
 }
 
 const processDocument = async () => {
   await originalProcessDocument()
   // 处理完成后切换到思维导图标签
   activeTab.value = 'mindmap'
+}
+
+// 重写clearAll函数，确保清除后显示上传区域
+const clearAllFiles = () => {
+  clearAll()
+  isUploadAreaCollapsed.value = false
 }
 </script>
 
@@ -265,6 +289,13 @@ const processDocument = async () => {
   transition: all 0.3s ease;
   background-color: #FFFFFF;
   margin-bottom: 16px;
+  overflow: hidden;
+}
+
+.drag-upload-area.collapsed {
+  padding: 16px 24px;
+  min-height: 60px;
+  max-height: 100px;
 }
 
 .drag-upload-area:hover {
@@ -387,29 +418,54 @@ const processDocument = async () => {
 
 /* 设置面板 */
 .settings-panel {
-  margin-top: 24px;
-  padding: 20px;
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 320px;
+  height: 100vh;
   background-color: #FFFFFF;
-  border: 1px solid #E9ECEF;
-  border-radius: 8px;
-  animation: slideDown 0.3s ease;
+  border-left: 1px solid #E9ECEF;
+  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.1);
+  padding: 24px;
+  z-index: 1000;
+  animation: slideInFromRight 0.3s ease;
+  overflow-y: auto;
+}
+
+.settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #E9ECEF;
+}
+
+.close-button {
+  color: #6C757D;
+  padding: 4px;
+  font-size: 16px;
+}
+
+.close-button:hover {
+  color: #343A40;
 }
 
 .settings-title {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 500;
   color: #343A40;
-  margin: 0 0 16px 0;
+  margin: 0;
 }
 
-@keyframes slideDown {
+@keyframes slideInFromRight {
   from {
     opacity: 0;
-    transform: translateY(-10px);
+    transform: translateX(100%);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateX(0);
   }
 }
 
