@@ -65,31 +65,7 @@
         </div>
       </div>
       
-      <!-- 操作按钮区 -->
-      <div v-if="uploadedFiles.length > 0" class="action-buttons-container">
-        <div class="action-buttons">
-          <el-button 
-            type="primary" 
-            size="large"
-            :loading="isProcessing"
-            @click="processDocument"
-            :disabled="uploadedFiles.length === 0"
-            class="action-button primary-button"
-          >
-            <el-icon><MagicStick /></el-icon>
-            {{ $t('common.convert') }}
-          </el-button>
-          
-          <el-button 
-            @click="clearAllFiles"
-            size="large"
-            class="action-button secondary-button"
-          >
-            <el-icon><Delete /></el-icon>
-            {{ $t('common.clear') }}
-          </el-button>
-        </div>
-      </div>
+
       
       <!-- 主内容区 -->
       <div class="content-container">
@@ -195,7 +171,8 @@ const handleFileInputChange = (event: Event) => {
     })
     // 清空input值，允许重复选择同一个文件
     input.value = ''
-    // 上传后保持上传区域显示，只在点击转换后折叠
+    // 上传后自动转换
+    processDocument()
   }
 }
 
@@ -208,7 +185,8 @@ const handleDrop = (event: DragEvent) => {
     files.forEach(file => {
       uploadedFiles.value.push(file)
     })
-    // 上传后保持上传区域显示，只在点击转换后折叠
+    // 上传后自动转换
+    processDocument()
   }
 }
 
@@ -384,13 +362,7 @@ const formatFileSize = (bytes: number): string => {
   box-shadow: 0 2px 8px rgba(22, 93, 255, 0.1);
 }
 
-/* 操作按钮区 */
-.action-buttons-container {
-  padding: 24px;
-  background-color: #FFFFFF;
-  border-bottom: 1px solid #EEEEEE;
-  transition: all 0.3s ease;
-}
+
 
 .drag-upload-area:hover {
   border-color: #165DFF;
