@@ -9,37 +9,45 @@
         <el-button 
           type="primary" 
           size="small"
-          :icon="Download"
           @click="downloadMindMap"
           class="action-button primary"
         >
+          <template #icon>
+            <el-icon><Download /></el-icon>
+          </template>
           下载
         </el-button>
         <el-button 
           type="default" 
           size="small"
-          :icon="Refresh"
           @click="resetView"
           class="action-button secondary"
         >
+          <template #icon>
+            <el-icon><Refresh /></el-icon>
+          </template>
           重置视图
         </el-button>
         <el-button 
           type="default" 
           size="small"
-          :icon="ZoomIn"
           @click="zoomIn"
           class="action-button secondary"
         >
+          <template #icon>
+            <el-icon><ZoomIn /></el-icon>
+          </template>
           放大
         </el-button>
         <el-button 
           type="default" 
           size="small"
-          :icon="ZoomOut"
           @click="zoomOut"
           class="action-button secondary"
         >
+          <template #icon>
+            <el-icon><ZoomOut /></el-icon>
+          </template>
           缩小
         </el-button>
       </div>

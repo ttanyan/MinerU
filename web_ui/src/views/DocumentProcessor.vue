@@ -4,7 +4,7 @@
     <header class="top-header">
       <h1 class="page-title">思维导图</h1>
       <el-button 
-          type="link" 
+          type="text" 
           @click="toggleSettings"
           class="settings-button"
         >
@@ -37,7 +37,7 @@
               <el-icon class="file-icon"><Document /></el-icon>
               <span class="file-name">{{ file.name }}</span>
               <el-button 
-                type="link" 
+                type="text" 
                 :icon="Delete" 
                 @click.stop="removeFile(index)"
                 class="remove-button"
@@ -53,7 +53,7 @@
           <div class="settings-header">
             <h3 class="settings-title">设置</h3>
             <el-button 
-              type="link" 
+              type="text" 
               @click="toggleSettings"
               class="close-button"
             >
@@ -112,7 +112,7 @@
             
             <!-- 思维导图 -->
             <div v-show="activeTab === 'mindmap'" class="mindmap-content">
-              <MindMapRenderer :content="results.mindmap || ''" />
+              <MindMapRenderer :content="results?.mindmap || ''" />
             </div>
           </div>
         </div>
