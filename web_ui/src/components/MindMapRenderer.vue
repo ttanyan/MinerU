@@ -117,7 +117,7 @@ const initMarkmap = async () => {
     
     // 初始化 transformer
     if (!transformer) {
-      transformer = new window.markmap.Transformer()
+      transformer = new window.markmap.Markmap.Transformer()
       console.log('Transformer initialized:', transformer)
     }
     
@@ -134,7 +134,7 @@ const initMarkmap = async () => {
       mmInstance.fit()
     } else {
       console.log('Creating new instance')
-      mmInstance = window.markmap.create(svgRef.value, {
+      mmInstance = window.markmap.Markmap.create(svgRef.value, {
         autoFit: true,
         fitRatio: 0.9,
         initialExpandLevel: -1,
