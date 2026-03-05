@@ -117,8 +117,17 @@ const initMarkmap = async () => {
     
     // 初始化 transformer
     if (!transformer) {
-      transformer = new window.markmap.Markmap.Transformer()
-      console.log('Transformer initialized:', transformer)
+      // 尝试不同的Transformer初始化方式
+      if (window.markmap.Transformer) {
+        transformer = new window.markmap.Transformer()
+        console.log('Transformer initialized from window.markmap.Transformer:', transformer)
+      } else if (window.markmap.Markmap && window.markmap.Markmap.Transformer) {
+        transformer = new window.markmap.Markmap.Transformer()
+        console.log('Transformer initialized from window.markmap.Markmap.Transformer:', transformer)
+      } else {
+        console.error('Transformer not found in markmap object')
+        return
+      }
     }
     
     // 1. 转换数据
@@ -127,6 +136,9 @@ const initMarkmap = async () => {
 
     // 2. 创建或更新实例
     console.log('SVG ref:', svgRef.value)
+    console.log('window.markmap:', window.markmap)
+    console.log('window.markmap.Markmap:', window.markmap.Markmap)
+    console.log('window.markmap.create:', window.markmap.create)
     
     if (mmInstance) {
       console.log('Updating existing instance')
@@ -134,22 +146,45 @@ const initMarkmap = async () => {
       mmInstance.fit()
     } else {
       console.log('Creating new instance')
-      mmInstance = window.markmap.Markmap.create(svgRef.value, {
-        autoFit: true,
-        fitRatio: 0.9,
-        initialExpandLevel: -1,
-        color: {
-          primary: '#165DFF',
-          secondary: '#4E5969',
-          tertiary: '#86909C'
-        },
-        padding: 60,
-        nodePadding: 12,
-        lineWidth: 2,
-        spacingVertical: 40,
-        spacingHorizontal: 60
-      }, root)
-      console.log('Created instance:', mmInstance)
+      // 尝试不同的创建实例方式
+      if (window.markmap.Markmap && window.markmap.Markmap.create) {
+        mmInstance = window.markmap.Markmap.create(svgRef.value, {
+          autoFit: true,
+          fitRatio: 0.9,
+          initialExpandLevel: -1,
+          color: {
+            primary: '#165DFF',
+            secondary: '#4E5969',
+            tertiary: '#86909C'
+          },
+          padding: 60,
+          nodePadding: 12,
+          lineWidth: 2,
+          spacingVertical: 40,
+          spacingHorizontal: 60
+        }, root)
+        console.log('Created instance using window.markmap.Markmap.create:', mmInstance)
+      } else if (window.markmap.create) {
+        mmInstance = window.markmap.create(svgRef.value, {
+          autoFit: true,
+          fitRatio: 0.9,
+          initialExpandLevel: -1,
+          color: {
+            primary: '#165DFF',
+            secondary: '#4E5969',
+            tertiary: '#86909C'
+          },
+          padding: 60,
+          nodePadding: 12,
+          lineWidth: 2,
+          spacingVertical: 40,
+          spacingHorizontal: 60
+        }, root)
+        console.log('Created instance using window.markmap.create:', mmInstance)
+      } else {
+        console.error('Create method not found in markmap object')
+        return
+      }
     }
   } catch (error) {
     console.error('Error initializing markmap:', error)
