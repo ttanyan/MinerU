@@ -40,6 +40,10 @@ export function useDocumentProcessor() {
   const isProcessing = ref(false)
   const error = ref<string | null>(null)
   
+  // 进度相关
+  const progress = ref(0)
+  const progressStatus = ref('')
+  
   // 后端选项
   const backendOptions = [
     { value: 'pipeline', label: '传统管道解析' },
@@ -112,6 +116,8 @@ export function useDocumentProcessor() {
     
     isProcessing.value = true
     error.value = null
+    progress.value = 0
+    progressStatus.value = '开始处理'
     
     try {
       const params: ParseParams = {
@@ -133,7 +139,10 @@ export function useDocumentProcessor() {
         params.server_url = config.serverUrl
       }
       
-      const response = await documentApi.parseDocument(params)
+      const response = await documentApi.parseDocument(params, (update) => {
+        progress.value = update.progress
+        progressStatus.value = update.status
+      })
       
       if (response.results) {
         const resultData = Object.values(response.results)[0]
@@ -148,6 +157,8 @@ export function useDocumentProcessor() {
       error.value = err.message || '转换失败'
     } finally {
       isProcessing.value = false
+      progress.value = 0
+      progressStatus.value = ''
     }
   }
   
@@ -183,6 +194,8 @@ export function useDocumentProcessor() {
     isUploading,
     isProcessing,
     error,
+    progress,
+    progressStatus,
     
     // 选项
     backendOptions,

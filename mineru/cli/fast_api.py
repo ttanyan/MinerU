@@ -11,8 +11,9 @@ from pathlib import Path
 import glob
 from fastapi import Depends, FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from starlette.background import BackgroundTask
+import json
 from typing import List, Optional
 from loguru import logger
 
@@ -22,13 +23,29 @@ logger.add(sys.stderr, level=log_level)  # 添加新handler
 
 from base64 import b64encode
 
-from mineru.cli.common import aio_do_parse, read_fn, pdf_suffixes, image_suffixes
+from mineru.cli.common import aio_do_parse, read_fn, pdf_suffixes, image_suffixes, word_suffixes
 from mineru.utils.cli_parser import arg_parse
 from mineru.utils.guess_suffix_or_lang import guess_suffix_by_path
 from mineru.version import __version__
 
 # 并发控制器
 _request_semaphore: Optional[asyncio.Semaphore] = None
+
+# 进度跟踪类
+class ProgressTracker:
+    def __init__(self):
+        self.progress = 0
+        self.status = "初始化"
+        
+    def update(self, progress: float, status: str):
+        self.progress = progress
+        self.status = status
+        
+    def get_progress(self):
+        return {
+            "progress": self.progress,
+            "status": self.status
+        }
 
 # 并发控制依赖函数
 async def limit_concurrency():
@@ -167,80 +184,133 @@ async def parse_pdf(
     # 获取命令行配置参数
     config = getattr(app.state, "config", {})
 
-    try:
-        # 创建唯一的输出目录
-        unique_dir = os.path.join(output_dir, str(uuid.uuid4()))
-        os.makedirs(unique_dir, exist_ok=True)
+    async def generate():
+        # 创建进度跟踪器
+        tracker = ProgressTracker()
+        
+        try:
+            # 创建唯一的输出目录
+            unique_dir = os.path.join(output_dir, str(uuid.uuid4()))
+            os.makedirs(unique_dir, exist_ok=True)
 
-        # 处理上传的PDF文件
-        pdf_file_names = []
-        pdf_bytes_list = []
+            # 处理上传的PDF文件
+            pdf_file_names = []
+            pdf_bytes_list = []
 
-        for file in files:
-            content = await file.read()
-            file_path = Path(file.filename)
+            for file in files:
+                content = await file.read()
+                file_path = Path(file.filename)
 
-            # 创建临时文件
-            temp_path = Path(unique_dir) / file_path.name
-            with open(temp_path, "wb") as f:
-                f.write(content)
+                # 创建临时文件
+                temp_path = Path(unique_dir) / file_path.name
+                with open(temp_path, "wb") as f:
+                    f.write(content)
 
-            # 如果是图像文件或PDF，使用read_fn处理
-            file_suffix = guess_suffix_by_path(temp_path)
-            if file_suffix in pdf_suffixes + image_suffixes:
-                try:
-                    pdf_bytes = read_fn(temp_path)
-                    pdf_bytes_list.append(pdf_bytes)
-                    pdf_file_names.append(file_path.stem)
-                    os.remove(temp_path)  # 删除临时文件
-                except Exception as e:
-                    return JSONResponse(
-                        status_code=400,
-                        content={"error": f"Failed to load file: {str(e)}"}
-                    )
+                # 如果是图像文件、PDF或Word文件，使用read_fn处理
+                file_suffix = guess_suffix_by_path(temp_path)
+                if file_suffix in pdf_suffixes + image_suffixes + word_suffixes:
+                    try:
+                        pdf_bytes = read_fn(temp_path)
+                        pdf_bytes_list.append(pdf_bytes)
+                        pdf_file_names.append(file_path.stem)
+                        os.remove(temp_path)  # 删除临时文件
+                    except Exception as e:
+                        yield json.dumps({"error": f"Failed to load file: {str(e)}"}) + "\n"
+                        return
+                else:
+                    yield json.dumps({"error": f"Unsupported file type: {file_suffix}"}) + "\n"
+                    return
+
+            # 设置语言列表，确保与文件数量一致
+            actual_lang_list = lang_list
+            if len(actual_lang_list) != len(pdf_file_names):
+                # 如果语言列表长度不匹配，使用第一个语言或默认"ch"
+                actual_lang_list = [actual_lang_list[0] if actual_lang_list else "ch"] * len(pdf_file_names)
+
+            # 进度回调函数
+            def progress_callback(progress: float, status: str):
+                tracker.update(progress, status)
+                # 生成进度更新
+                yield json.dumps({"progress": progress, "status": status}) + "\n"
+
+            # 调用异步处理函数
+            await aio_do_parse(
+                output_dir=unique_dir,
+                pdf_file_names=pdf_file_names,
+                pdf_bytes_list=pdf_bytes_list,
+                p_lang_list=actual_lang_list,
+                backend=backend,
+                parse_method=parse_method,
+                formula_enable=formula_enable,
+                table_enable=table_enable,
+                server_url=server_url,
+                f_draw_layout_bbox=False,
+                f_draw_span_bbox=False,
+                f_dump_md=return_md,
+                f_dump_middle_json=return_middle_json,
+                f_dump_model_output=return_model_output,
+                f_dump_orig_pdf=False,
+                f_dump_content_list=return_content_list,
+                start_page_id=start_page_id,
+                end_page_id=end_page_id,
+                progress_callback=progress_callback,
+                **config
+            )
+
+            # 根据 response_format_zip 决定返回类型
+            if response_format_zip:
+                zip_fd, zip_path = tempfile.mkstemp(suffix=".zip", prefix="mineru_results_")
+                os.close(zip_fd)
+                with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+                    for pdf_name in pdf_file_names:
+                        safe_pdf_name = sanitize_filename(pdf_name)
+
+                        if backend.startswith("pipeline"):
+                            parse_dir = os.path.join(unique_dir, pdf_name, parse_method)
+                        elif backend.startswith("vlm"):
+                            parse_dir = os.path.join(unique_dir, pdf_name, "vlm")
+                        elif backend.startswith("hybrid"):
+                            parse_dir = os.path.join(unique_dir, pdf_name, f"hybrid_{parse_method}")
+
+                        if not os.path.exists(parse_dir):
+                            continue
+
+                        # 写入文本类结果
+                        if return_md:
+                            path = os.path.join(parse_dir, f"{pdf_name}.md")
+                            if os.path.exists(path):
+                                zf.write(path, arcname=os.path.join(safe_pdf_name, f"{safe_pdf_name}.md"))
+
+                        if return_middle_json:
+                            path = os.path.join(parse_dir, f"{pdf_name}_middle.json")
+                            if os.path.exists(path):
+                                zf.write(path, arcname=os.path.join(safe_pdf_name, f"{safe_pdf_name}_middle.json"))
+
+                        if return_model_output:
+                            path = os.path.join(parse_dir, f"{pdf_name}_model.json")
+                            if os.path.exists(path):
+                                zf.write(path, arcname=os.path.join(safe_pdf_name, os.path.basename(path)))
+
+                        if return_content_list:
+                            path = os.path.join(parse_dir, f"{pdf_name}_content_list.json")
+                            if os.path.exists(path):
+                                zf.write(path, arcname=os.path.join(safe_pdf_name, f"{safe_pdf_name}_content_list.json"))
+
+                        # 写入图片
+                        if return_images:
+                            images_dir = os.path.join(parse_dir, "images")
+                            image_paths = glob.glob(os.path.join(glob.escape(images_dir), "*.jpg"))
+                            for image_path in image_paths:
+                                zf.write(image_path, arcname=os.path.join(safe_pdf_name, "images", os.path.basename(image_path)))
+
+                # 生成ZIP文件路径
+                yield json.dumps({"zip_path": zip_path, "filename": "results.zip"}) + "\n"
             else:
-                return JSONResponse(
-                    status_code=400,
-                    content={"error": f"Unsupported file type: {file_suffix}"}
-                )
-
-
-        # 设置语言列表，确保与文件数量一致
-        actual_lang_list = lang_list
-        if len(actual_lang_list) != len(pdf_file_names):
-            # 如果语言列表长度不匹配，使用第一个语言或默认"ch"
-            actual_lang_list = [actual_lang_list[0] if actual_lang_list else "ch"] * len(pdf_file_names)
-
-        # 调用异步处理函数
-        await aio_do_parse(
-            output_dir=unique_dir,
-            pdf_file_names=pdf_file_names,
-            pdf_bytes_list=pdf_bytes_list,
-            p_lang_list=actual_lang_list,
-            backend=backend,
-            parse_method=parse_method,
-            formula_enable=formula_enable,
-            table_enable=table_enable,
-            server_url=server_url,
-            f_draw_layout_bbox=False,
-            f_draw_span_bbox=False,
-            f_dump_md=return_md,
-            f_dump_middle_json=return_middle_json,
-            f_dump_model_output=return_model_output,
-            f_dump_orig_pdf=False,
-            f_dump_content_list=return_content_list,
-            start_page_id=start_page_id,
-            end_page_id=end_page_id,
-            **config
-        )
-
-        # 根据 response_format_zip 决定返回类型
-        if response_format_zip:
-            zip_fd, zip_path = tempfile.mkstemp(suffix=".zip", prefix="mineru_results_")
-            os.close(zip_fd)
-            with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+                # 构建 JSON 结果
+                result_dict = {}
                 for pdf_name in pdf_file_names:
-                    safe_pdf_name = sanitize_filename(pdf_name)
+                    result_dict[pdf_name] = {}
+                    data = result_dict[pdf_name]
 
                     if backend.startswith("pipeline"):
                         parse_dir = os.path.join(unique_dir, pdf_name, parse_method)
@@ -249,91 +319,37 @@ async def parse_pdf(
                     elif backend.startswith("hybrid"):
                         parse_dir = os.path.join(unique_dir, pdf_name, f"hybrid_{parse_method}")
 
-                    if not os.path.exists(parse_dir):
-                        continue
+                    if os.path.exists(parse_dir):
+                        if return_md:
+                            data["md_content"] = get_infer_result(".md", pdf_name, parse_dir)
+                        if return_middle_json:
+                            data["middle_json"] = get_infer_result("_middle.json", pdf_name, parse_dir)
+                        if return_model_output:
+                            data["model_output"] = get_infer_result("_model.json", pdf_name, parse_dir)
+                        if return_content_list:
+                            data["content_list"] = get_infer_result("_content_list.json", pdf_name, parse_dir)
+                        if return_images:
+                            images_dir = os.path.join(parse_dir, "images")
+                            safe_pattern = os.path.join(glob.escape(images_dir), "*.jpg")
+                            image_paths = glob.glob(safe_pattern)
+                            data["images"] = {
+                                os.path.basename(
+                                    image_path
+                                ): f"data:image/jpeg;base64,{encode_image(image_path)}"
+                                for image_path in image_paths
+                            }
 
-                    # 写入文本类结果
-                    if return_md:
-                        path = os.path.join(parse_dir, f"{pdf_name}.md")
-                        if os.path.exists(path):
-                            zf.write(path, arcname=os.path.join(safe_pdf_name, f"{safe_pdf_name}.md"))
-
-                    if return_middle_json:
-                        path = os.path.join(parse_dir, f"{pdf_name}_middle.json")
-                        if os.path.exists(path):
-                            zf.write(path, arcname=os.path.join(safe_pdf_name, f"{safe_pdf_name}_middle.json"))
-
-                    if return_model_output:
-                        path = os.path.join(parse_dir, f"{pdf_name}_model.json")
-                        if os.path.exists(path):
-                            zf.write(path, arcname=os.path.join(safe_pdf_name, os.path.basename(path)))
-
-                    if return_content_list:
-                        path = os.path.join(parse_dir, f"{pdf_name}_content_list.json")
-                        if os.path.exists(path):
-                            zf.write(path, arcname=os.path.join(safe_pdf_name, f"{safe_pdf_name}_content_list.json"))
-
-                    # 写入图片
-                    if return_images:
-                        images_dir = os.path.join(parse_dir, "images")
-                        image_paths = glob.glob(os.path.join(glob.escape(images_dir), "*.jpg"))
-                        for image_path in image_paths:
-                            zf.write(image_path, arcname=os.path.join(safe_pdf_name, "images", os.path.basename(image_path)))
-
-            return FileResponse(
-                path=zip_path,
-                media_type="application/zip",
-                filename="results.zip",
-                background=BackgroundTask(cleanup_file, zip_path)
-            )
-        else:
-            # 构建 JSON 结果
-            result_dict = {}
-            for pdf_name in pdf_file_names:
-                result_dict[pdf_name] = {}
-                data = result_dict[pdf_name]
-
-                if backend.startswith("pipeline"):
-                    parse_dir = os.path.join(unique_dir, pdf_name, parse_method)
-                elif backend.startswith("vlm"):
-                    parse_dir = os.path.join(unique_dir, pdf_name, "vlm")
-                elif backend.startswith("hybrid"):
-                    parse_dir = os.path.join(unique_dir, pdf_name, f"hybrid_{parse_method}")
-
-                if os.path.exists(parse_dir):
-                    if return_md:
-                        data["md_content"] = get_infer_result(".md", pdf_name, parse_dir)
-                    if return_middle_json:
-                        data["middle_json"] = get_infer_result("_middle.json", pdf_name, parse_dir)
-                    if return_model_output:
-                        data["model_output"] = get_infer_result("_model.json", pdf_name, parse_dir)
-                    if return_content_list:
-                        data["content_list"] = get_infer_result("_content_list.json", pdf_name, parse_dir)
-                    if return_images:
-                        images_dir = os.path.join(parse_dir, "images")
-                        safe_pattern = os.path.join(glob.escape(images_dir), "*.jpg")
-                        image_paths = glob.glob(safe_pattern)
-                        data["images"] = {
-                            os.path.basename(
-                                image_path
-                            ): f"data:image/jpeg;base64,{encode_image(image_path)}"
-                            for image_path in image_paths
-                        }
-
-            return JSONResponse(
-                status_code=200,
-                content={
+                # 生成最终结果
+                yield json.dumps({
                     "backend": backend,
                     "version": __version__,
                     "results": result_dict
-                }
-            )
-    except Exception as e:
-        logger.exception(e)
-        return JSONResponse(
-            status_code=500,
-            content={"error": f"Failed to process file: {str(e)}"}
-        )
+                }) + "\n"
+        except Exception as e:
+            logger.exception(e)
+            yield json.dumps({"error": f"Failed to process file: {str(e)}"}) + "\n"
+
+    return StreamingResponse(generate(), media_type="application/json")
 
 
 @click.command(context_settings=dict(ignore_unknown_options=True, allow_extra_args=True))

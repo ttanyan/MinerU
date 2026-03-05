@@ -29,11 +29,16 @@ export interface ParseResult {
   }>
 }
 
+export interface ProgressUpdate {
+  progress: number
+  status: string
+}
+
 export const documentApi = {
   /**
    * 解析文档
    */
-  parseDocument(params: ParseParams): Promise<ParseResult> {
+  parseDocument(params: ParseParams, onProgress?: (update: ProgressUpdate) => void): Promise<ParseResult> {
     const formData = new FormData()
     
     // 添加文件
@@ -58,10 +63,69 @@ export const documentApi = {
       formData.append('server_url', params.server_url)
     }
     
-    return request.post('/file_parse', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest()
+      xhr.open('POST', '/file_parse')
+      
+      xhr.onprogress = (event) => {
+        if (event.target && event.target.responseText) {
+          const responseText = event.target.responseText
+          const lines = responseText.split('\n')
+          
+          for (const line of lines) {
+            if (line.trim()) {
+              try {
+                const data = JSON.parse(line)
+                if (data.progress !== undefined && data.status !== undefined) {
+                  // 进度更新
+                  if (onProgress) {
+                    onProgress(data)
+                  }
+                } else if (data.error) {
+                  // 错误信息
+                  reject(new Error(data.error))
+                } else if (data.results) {
+                  // 最终结果
+                  resolve(data)
+                }
+              } catch (e) {
+                // 忽略解析错误
+              }
+            }
+          }
+        }
       }
+      
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          const responseText = xhr.responseText
+          const lines = responseText.split('\n')
+          
+          for (const line of lines) {
+            if (line.trim()) {
+              try {
+                const data = JSON.parse(line)
+                if (data.results) {
+                  resolve(data)
+                  return
+                }
+              } catch (e) {
+                // 忽略解析错误
+              }
+            }
+          }
+          
+          reject(new Error('Invalid response format'))
+        } else {
+          reject(new Error(`Request failed with status ${xhr.status}`))
+        }
+      }
+      
+      xhr.onerror = () => {
+        reject(new Error('Network error'))
+      }
+      
+      xhr.send(formData)
     })
   }
 }

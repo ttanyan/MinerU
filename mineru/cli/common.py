@@ -26,6 +26,7 @@ if os.getenv("MINERU_LMDEPLOY_DEVICE", "") == "maca":
 
 pdf_suffixes = ["pdf"]
 image_suffixes = ["png", "jpeg", "jp2", "webp", "gif", "bmp", "jpg", "tiff"]
+word_suffixes = ["docx", "doc"]
 
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -39,6 +40,33 @@ def read_fn(path):
             return images_bytes_to_pdf_bytes(file_bytes)
         elif file_suffix in pdf_suffixes:
             return file_bytes
+        elif file_suffix in word_suffixes:
+            # 处理Word文件，转换为PDF
+            from docx import Document
+            from reportlab.lib.pagesizes import letter
+            from reportlab.pdfgen import canvas
+            from io import BytesIO
+            
+            # 读取Word文件
+            doc = Document(BytesIO(file_bytes))
+            
+            # 创建PDF
+            output = BytesIO()
+            c = canvas.Canvas(output, pagesize=letter)
+            width, height = letter
+            
+            # 写入内容
+            y = height - 100
+            for para in doc.paragraphs:
+                if y < 100:
+                    c.showPage()
+                    y = height - 100
+                c.drawString(100, y, para.text)
+                y -= 20
+            
+            c.save()
+            output.seek(0)
+            return output.read()
         else:
             raise Exception(f"Unknown file suffix: {file_suffix}")
 
@@ -237,6 +265,7 @@ async def _async_process_vlm(
         f_dump_content_list,
         f_make_md_mode,
         server_url=None,
+        progress_callback=None,
         **kwargs,
 ):
     """异步处理VLM后端逻辑"""
@@ -245,14 +274,23 @@ async def _async_process_vlm(
     if not backend.endswith("client"):
         server_url = None
 
+    total_files = len(pdf_bytes_list)
     for idx, pdf_bytes in enumerate(pdf_bytes_list):
         pdf_file_name = pdf_file_names[idx]
         local_image_dir, local_md_dir = prepare_env(output_dir, pdf_file_name, parse_method)
         image_writer, md_writer = FileBasedDataWriter(local_image_dir), FileBasedDataWriter(local_md_dir)
+        
+        # 更新进度
+        if progress_callback:
+            progress_callback((idx / total_files) * 50, f"处理文件 {idx+1}/{total_files}")
 
         middle_json, infer_result = await aio_vlm_doc_analyze(
             pdf_bytes, image_writer=image_writer, backend=backend, server_url=server_url, **kwargs,
         )
+        
+        # 更新进度
+        if progress_callback:
+            progress_callback(((idx + 1) / total_files) * 100, f"完成文件 {idx+1}/{total_files}")
 
         pdf_info = middle_json["pdf_info"]
 
@@ -375,6 +413,7 @@ async def _async_process_hybrid(
         f_dump_content_list,
         f_make_md_mode,
         server_url=None,
+        progress_callback=None,
         **kwargs,
 ):
     from mineru.backend.hybrid.hybrid_analyze import aio_doc_analyze as aio_hybrid_doc_analyze
@@ -382,10 +421,15 @@ async def _async_process_hybrid(
     if not backend.endswith("client"):
         server_url = None
 
+    total_files = len(pdf_bytes_list)
     for idx, (pdf_bytes, lang) in enumerate(zip(pdf_bytes_list, h_lang_list)):
         pdf_file_name = pdf_file_names[idx]
         local_image_dir, local_md_dir = prepare_env(output_dir, pdf_file_name, f"hybrid_{parse_method}")
         image_writer, md_writer = FileBasedDataWriter(local_image_dir), FileBasedDataWriter(local_md_dir)
+        
+        # 更新进度
+        if progress_callback:
+            progress_callback((idx / total_files) * 50, f"处理文件 {idx+1}/{total_files}")
 
         middle_json, infer_result, _vlm_ocr_enable = await aio_hybrid_doc_analyze(
             pdf_bytes,
@@ -397,6 +441,10 @@ async def _async_process_hybrid(
             server_url=server_url,
             **kwargs,
         )
+        
+        # 更新进度
+        if progress_callback:
+            progress_callback(((idx + 1) / total_files) * 100, f"完成文件 {idx+1}/{total_files}")
 
         pdf_info = middle_json["pdf_info"]
 
@@ -503,6 +551,7 @@ async def aio_do_parse(
         f_make_md_mode=MakeMode.MM_MD,
         start_page_id=0,
         end_page_id=None,
+        progress_callback=None,
         **kwargs,
 ):
     # 预处理PDF字节数据
@@ -529,11 +578,12 @@ async def aio_do_parse(
             os.environ['MINERU_VLM_FORMULA_ENABLE'] = str(formula_enable)
             os.environ['MINERU_VLM_TABLE_ENABLE'] = str(table_enable)
 
+            # 传递进度回调
             await _async_process_vlm(
                 output_dir, pdf_file_names, pdf_bytes_list, backend,
                 f_draw_layout_bbox, f_draw_span_bbox, f_dump_md, f_dump_middle_json,
                 f_dump_model_output, f_dump_orig_pdf, f_dump_content_list, f_make_md_mode,
-                server_url, **kwargs,
+                server_url, progress_callback=progress_callback, **kwargs,
             )
         elif backend.startswith("hybrid-"):
             backend = backend[7:]
@@ -547,11 +597,12 @@ async def aio_do_parse(
             os.environ['MINERU_VLM_TABLE_ENABLE'] = str(table_enable)
             os.environ['MINERU_VLM_FORMULA_ENABLE'] = "true"
 
+            # 传递进度回调
             await _async_process_hybrid(
                 output_dir, pdf_file_names, pdf_bytes_list, p_lang_list, parse_method, formula_enable, backend,
                 f_draw_layout_bbox, f_draw_span_bbox, f_dump_md, f_dump_middle_json,
                 f_dump_model_output, f_dump_orig_pdf, f_dump_content_list, f_make_md_mode,
-                server_url, **kwargs,
+                server_url, progress_callback=progress_callback, **kwargs,
             )
 
 

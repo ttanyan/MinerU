@@ -91,6 +91,16 @@
           class="error-alert"
         />
         
+        <!-- 进度条 -->
+        <div v-if="isProcessing" class="progress-container">
+          <el-progress
+            :percentage="progress"
+            :format="() => progressStatus"
+            :stroke-width="10"
+            status="success"
+          />
+        </div>
+        
         <!-- 结果面板 -->
         <div class="result-panel-container">
           <ResultPanel :result="results" />
@@ -125,6 +135,8 @@ const {
   results,
   isProcessing,
   error,
+  progress,
+  progressStatus,
   backendOptions,
   languageOptions,
   clearAll,
@@ -590,6 +602,11 @@ const formatFileSize = (bytes: number): string => {
 
 .error-alert {
   border-radius: 8px;
+}
+
+/* 进度条容器 */
+.progress-container {
+  margin: 24px 0;
 }
 
 /* 结果面板 */
