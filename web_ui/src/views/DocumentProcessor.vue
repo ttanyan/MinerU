@@ -204,10 +204,8 @@ const clearAllFiles = () => {
   isHeaderCollapsed.value = false
 }
 
-// 重写processDocument函数，在点击转换按钮后立即折叠上传区域
+// 重写processDocument函数，在点击转换按钮后平滑缩小上传区域
 const processDocument = async () => {
-  // 点击转换按钮后立即折叠上传区域
-  isHeaderCollapsed.value = true
   // 调用useDocumentProcessor中的processDocument函数
   await originalProcessDocument()
 }
@@ -327,12 +325,17 @@ const formatFileSize = (bytes: number): string => {
 .drag-upload-area {
   border: 1px dashed #DCDFE6;
   background-color: #F9FAFC;
-  padding: 48px 24px;
+  padding: 24px;
   text-align: center;
   cursor: pointer;
   transition: all 0.3s ease;
   overflow: hidden;
   max-height: 200px;
+}
+
+.drag-upload-area:has(.uploaded-files-in-area) {
+  max-height: 120px;
+  padding: 16px 24px;
 }
 
 /* 已上传文件容器 */
@@ -349,12 +352,13 @@ const formatFileSize = (bytes: number): string => {
 }
 
 .uploaded-files-in-area .file-card {
-  background-color: #F9FAFC;
-  border: 1px solid #E4E7ED;
-  border-radius: 6px;
-  padding: 16px;
+  background-color: #FFFFFF;
+  border: 2px solid #E4E7ED;
+  border-radius: 8px;
+  padding: 20px;
   margin-bottom: 16px;
   transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .uploaded-files-in-area .file-card:hover {
