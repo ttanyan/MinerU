@@ -1,77 +1,56 @@
 <template>
   <div class="document-processor">
-    <div class="workspace">
-      <!-- 导航栏 -->
-      <header class="nav-bar">
-        <h1 class="app-title">思维导图 <span class="subtitle">让文档内容为AI所用</span></h1>
-        <div class="header-actions">
-          <el-button 
-            v-if="isHeaderCollapsed"
-            type="primary" 
-            :icon="Upload"
-            @click="toggleUploadArea"
-            class="upload-toggle-button"
-          >
-            重新上传
-          </el-button>
-          <el-button 
-            type="default" 
-            :icon="Setting"
-            @click="toggleSettings"
-            class="settings-button"
-          >
-            设置
-          </el-button>
-        </div>
-      </header>
-      
-      <!-- 拖拽上传区 -->
-      <div 
-        v-if="!isHeaderCollapsed"
-        class="drag-upload-area"
-        :class="{ 'drag-over': isDragging }"
-        @drop="handleDrop"
-        @dragover.prevent="isDragging = true"
-        @dragleave="isDragging = false"
-        @click="triggerUpload"
+    <!-- 顶部标题栏 -->
+    <header class="top-header">
+      <h1 class="page-title">思维导图</h1>
+      <el-button 
+        type="text" 
+        @click="toggleSettings"
+        class="settings-button"
       >
-        <div class="drag-upload-content" v-if="uploadedFiles.length === 0">
-          <div class="file-icons">
-            <el-icon class="file-icon pdf-icon"><Document /></el-icon>
-            <el-icon class="file-icon word-icon"><Document /></el-icon>
-            <el-icon class="file-icon docker-icon"><Document /></el-icon>
-            <el-icon class="file-icon png-icon"><Picture /></el-icon>
+        设置
+      </el-button>
+    </header>
+    
+    <!-- 主内容区域 -->
+    <div class="main-content">
+      <!-- 文件上传区域 -->
+      <div class="upload-section">
+        <!-- 拖拽上传区 -->
+        <div 
+          class="drag-upload-area"
+          :class="{ 'drag-over': isDragging }"
+          @drop="handleDrop"
+          @dragover.prevent="isDragging = true"
+          @dragleave="isDragging = false"
+          @click="triggerUpload"
+        >
+          <div class="upload-content">
+            <el-icon class="upload-icon"><Folder /></el-icon>
+            <div class="upload-text">文件导入</div>
+            <div class="upload-hint">支持PDF、Word、PNG格式文件，点击或拖拽文件至此处上传</div>
           </div>
-          <p class="drag-upload-text">支持 PDF、Word、PNG 文件格式，点击或拖拽文件至此上传</p>
-        </div>
-        
-        <!-- 已上传文件显示在上传框内 -->
-        <div v-else class="uploaded-files-in-area">
-          <div class="file-card" v-for="(file, index) in uploadedFiles" :key="index">
-            <div class="file-info">
+          
+          <!-- 已上传文件列表 -->
+          <div v-if="uploadedFiles.length > 0" class="uploaded-files">
+            <div class="file-item" v-for="(file, index) in uploadedFiles" :key="index">
               <el-icon class="file-icon"><Document /></el-icon>
               <span class="file-name">{{ file.name }}</span>
-              <span class="file-size">({{ formatFileSize(file.size) }})</span>
               <el-button 
-                type="danger" 
+                type="text" 
                 :icon="Delete" 
-                circle 
-                size="small"
                 @click.stop="removeFile(index)"
                 class="remove-button"
               />
             </div>
           </div>
         </div>
-      </div>
-      
+        
 
-      
-      <!-- 主内容区 -->
-      <div class="content-container">
         
         <!-- 设置面板 -->
         <div v-if="showSettings" class="settings-panel">
+          <h3 class="settings-title">设置</h3>
           <ConfigPanel 
             v-model="config"
             :backend-options="backendOptions"
@@ -79,21 +58,54 @@
             @backend-change="handleBackendChange"
           />
         </div>
+      </div>
+      
+      <!-- 结果显示区域 -->
+      <div class="result-section">
+        <!-- 标签页 -->
+        <el-tabs v-model="activeTab" class="result-tabs">
+          <el-tab-pane label="Markdown 渲染" name="markdown" />
+          <el-tab-pane label="Markdown 源码" name="source" />
+          <el-tab-pane label="思维导图" name="mindmap" />
+        </el-tabs>
         
-        <!-- 错误提示 -->
-        <el-alert
-          v-if="error"
-          :title="error"
-          type="error"
-          show-icon
-          closable
-          @close="error = null"
-          class="error-alert"
-        />
-        
-        <!-- 结果面板 -->
-        <div class="result-panel-container">
-          <ResultPanel :result="results" :is-processing="isProcessing" />
+        <!-- 结果内容 -->
+        <div class="result-content">
+          <!-- 加载状态 -->
+          <div v-if="isProcessing" class="loading-container">
+            <el-spinner :size="48" />
+            <p class="loading-text">正在处理文档...</p>
+          </div>
+          
+          <!-- 无结果状态 -->
+          <div v-else-if="!results" class="empty-state">
+            <div class="empty-icon"></div>
+            <p class="empty-text">暂无转换结果</p>
+          </div>
+          
+          <!-- 结果内容 -->
+          <div v-else class="result-tab-content">
+            <!-- Markdown 渲染 -->
+            <div v-show="activeTab === 'markdown'" class="markdown-content">
+              <MarkdownRenderer :content="results.markdown || ''" />
+            </div>
+            
+            <!-- Markdown 源码 -->
+            <div v-show="activeTab === 'source'" class="source-content">
+              <el-input
+                :model-value="results.source"
+                type="textarea"
+                :rows="20"
+                readonly
+                class="source-textarea"
+              />
+            </div>
+            
+            <!-- 思维导图 -->
+            <div v-show="activeTab === 'mindmap'" class="mindmap-content">
+              <MindMapRenderer :content="results.mindmap || ''" />
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -103,7 +115,7 @@
       ref="fileInput"
       type="file"
       multiple
-      accept=".pdf,.doc,.docx,.dockerfile,Dockerfile,.png"
+      accept=".pdf,.doc,.docx,.png"
       style="position: absolute; width: 0; height: 0; overflow: hidden;"
       @change="handleFileInputChange"
     />
@@ -112,10 +124,10 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { MagicStick, Delete, Setting, Upload, Document } from '@element-plus/icons-vue'
-import type { UploadFile, UploadInstance } from 'element-plus'
+import { Delete, Document, Folder, Setting } from '@element-plus/icons-vue'
 import ConfigPanel from '@/components/ConfigPanel.vue'
-import ResultPanel from '@/components/ResultPanel.vue'
+import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
+import MindMapRenderer from '@/components/MindMapRenderer.vue'
 import { useDocumentProcessor } from '@/composables/useDocumentProcessor'
 
 // 使用组合式函数
@@ -128,37 +140,25 @@ const {
   backendOptions,
   languageOptions,
   clearAll,
-  processDocument: originalProcessDocument,
-  getFormulaLabel,
-  getFormulaInfo
+  processDocument: originalProcessDocument
 } = useDocumentProcessor()
 
 const showSettings = ref(false)
 const fileInput = ref<HTMLInputElement | null>(null)
 const isDragging = ref(false)
-const isHeaderCollapsed = ref(false)
+const activeTab = ref('markdown')
 
 const toggleSettings = () => {
   showSettings.value = !showSettings.value
 }
 
-const toggleUploadArea = () => {
-  isHeaderCollapsed.value = !isHeaderCollapsed.value
-}
-
 const handleBackendChange = (backend: string) => {
-  // 可以在这里添加后端切换的额外逻辑
   console.log('Backend changed to:', backend)
 }
 
 const triggerUpload = () => {
-  console.log('triggerUpload called')
-  console.log('fileInput.value:', fileInput.value)
   if (fileInput.value) {
-    console.log('Clicking file input')
     fileInput.value.click()
-  } else {
-    console.log('fileInput.value is null')
   }
 }
 
@@ -171,7 +171,7 @@ const handleFileInputChange = (event: Event) => {
     })
     // 清空input值，允许重复选择同一个文件
     input.value = ''
-    // 上传后自动转换
+    // 自动处理文件
     processDocument()
   }
 }
@@ -185,396 +185,221 @@ const handleDrop = (event: DragEvent) => {
     files.forEach(file => {
       uploadedFiles.value.push(file)
     })
-    // 上传后自动转换
+    // 自动处理文件
     processDocument()
   }
 }
 
 const removeFile = (index: number) => {
   uploadedFiles.value.splice(index, 1)
-  // 如果没有文件了，重新显示上传区域
-  if (uploadedFiles.value.length === 0) {
-    isHeaderCollapsed.value = false
-  }
 }
 
-// 重写clearAll函数，确保清除后显示上传区域
-const clearAllFiles = () => {
-  clearAll()
-  isHeaderCollapsed.value = false
-}
-
-// 重写processDocument函数，在点击转换按钮后平滑缩小上传区域
 const processDocument = async () => {
-  // 调用useDocumentProcessor中的processDocument函数
   await originalProcessDocument()
-}
-
-const formatFileSize = (bytes: number): string => {
-  if (bytes === 0) return '0 Bytes'
-  const k = 1024
-  const sizes = ['Bytes', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  // 处理完成后切换到思维导图标签
+  activeTab.value = 'mindmap'
 }
 </script>
 
 <style scoped>
 .document-processor {
   height: 100vh;
-  overflow: hidden;
-  background-color: #F2F3F5;
-}
-
-.workspace {
-  height: 100%;
-  background-color: #FFFFFF;
   display: flex;
   flex-direction: column;
+  background-color: #F8F9FA;
 }
 
-/* 导航栏 */
-.nav-bar {
-  background-color: #ffffff;
+/* 顶部标题栏 */
+.top-header {
   padding: 16px 24px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  background-color: #FFFFFF;
+  border-bottom: 1px solid #E9ECEF;
 }
 
-.app-title {
-  font-size: 20px;
-  font-weight: 600;
-  color: #1D2129;
+.page-title {
+  font-size: 18px;
+  font-weight: 500;
+  color: #343A40;
   margin: 0;
 }
 
-.subtitle {
-  font-size: 14px;
-  font-weight: 400;
-  color: #4E5969;
-  margin-left: 12px;
-}
-
-.header-actions {
-  display: flex;
-  gap: 16px;
-  align-items: center;
-}
-
-/* 上传按钮 */
-.upload-button {
-  background-color: #165DFF;
-  border-color: #165DFF;
-  color: #FFFFFF;
-  font-weight: 500;
-  border-radius: 6px;
-  height: 40px;
-  padding: 0 20px;
-  transition: all 0.3s ease;
-}
-
-/* 重新上传按钮 */
-.upload-toggle-button {
-  background-color: #165DFF;
-  border-color: #165DFF;
-  color: #FFFFFF;
-  font-weight: 500;
-  border-radius: 6px;
-  height: 40px;
-  padding: 0 16px;
-  transition: all 0.3s ease;
-  margin-right: 16px;
-}
-
-.upload-button:hover {
-  background-color: #0E42D2;
-  border-color: #0E42D2;
-}
-
-.upload-button:active {
-  background-color: #0E42D2;
-  border-color: #0E42D2;
-  transform: translateY(1px);
-}
-
-/* 设置按钮 */
 .settings-button {
-  border-color: #C9CDD4;
-  color: #4E5969;
-  border-radius: 6px;
-  height: 40px;
-  padding: 0 16px;
-  transition: all 0.3s ease;
+  color: #6C757D;
   font-size: 14px;
-  font-weight: 400;
+  padding: 4px 12px;
 }
 
 .settings-button:hover {
-  border-color: #165DFF;
   color: #165DFF;
 }
 
-.settings-button:active {
-  border-color: #0E42D2;
-  color: #0E42D2;
-  transform: translateY(1px);
+/* 主内容区域 */
+.main-content {
+  flex: 1;
+  padding: 24px;
+  overflow: auto;
+}
+
+/* 上传区域 */
+.upload-section {
+  margin-bottom: 32px;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: #343A40;
+  margin: 0 0 16px 0;
 }
 
 /* 拖拽上传区 */
 .drag-upload-area {
-  border: 1px dashed #DCDFE6;
-  background-color: #F9FAFC;
-  padding: 24px;
+  border: 2px dashed #CED4DA;
+  border-radius: 8px;
+  padding: 40px 24px;
   text-align: center;
   cursor: pointer;
   transition: all 0.3s ease;
-  overflow: hidden;
-  max-height: 200px;
-}
-
-.drag-upload-area:has(.uploaded-files-in-area) {
-  max-height: 120px;
-  padding: 16px 24px;
-}
-
-/* 已上传文件容器 */
-.uploaded-files-container {
-  padding: 24px;
   background-color: #FFFFFF;
-  border-bottom: 1px solid #EEEEEE;
-  transition: all 0.3s ease;
-}
-
-/* 已上传文件在上传框内显示 */
-.uploaded-files-in-area {
-  width: 100%;
-}
-
-.uploaded-files-in-area .file-card {
-  background-color: #FFFFFF;
-  border: 2px solid #E4E7ED;
-  border-radius: 8px;
-  padding: 20px;
   margin-bottom: 16px;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
-
-.uploaded-files-in-area .file-card:hover {
-  border-color: #165DFF;
-  box-shadow: 0 2px 8px rgba(22, 93, 255, 0.1);
-}
-
-
 
 .drag-upload-area:hover {
   border-color: #165DFF;
-  background-color: #ECF5FF;
+  background-color: #F8F9FF;
 }
 
 .drag-upload-area.drag-over {
   border-color: #165DFF;
-  background-color: #ECF5FF;
+  background-color: #F8F9FF;
 }
 
-.drag-upload-content {
+.upload-content {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
+  gap: 12px;
 }
 
-.file-icons {
+.upload-icon {
+  font-size: 48px;
+  color: #165DFF;
+}
+
+.upload-text {
+  font-size: 16px;
+  font-weight: 500;
+  color: #343A40;
+}
+
+.upload-hint {
+  font-size: 14px;
+  color: #6C757D;
+  line-height: 1.5;
+  max-width: 400px;
+}
+
+/* 已上传文件 */
+.uploaded-files {
+  margin-top: 24px;
+  text-align: left;
+}
+
+.file-item {
   display: flex;
   align-items: center;
-  gap: 16px;
-  position: relative;
-  height: 64px;
-}
-
-.file-icon {
-  font-size: 32px;
-  position: absolute;
+  gap: 12px;
+  padding: 12px 16px;
+  background-color: #F8F9FA;
+  border-radius: 6px;
+  margin-bottom: 8px;
   transition: all 0.3s ease;
 }
 
-.pdf-icon {
-  color: #FF0000;
-  left: 0;
-  z-index: 4;
-  transform: translateX(0);
+.file-item:hover {
+  background-color: #E9ECEF;
 }
 
-.word-icon {
-  color: #1E40AF;
-  left: 24px;
-  z-index: 3;
-  transform: translateX(10%);
+.file-icon {
+  font-size: 18px;
+  color: #165DFF;
 }
 
-.docker-icon {
-  color: #2496ED;
-  left: 48px;
-  z-index: 2;
-  transform: translateX(20%);
-}
-
-.png-icon {
-  color: #FF6B6B;
-  left: 72px;
-  z-index: 1;
-  transform: translateX(30%);
-}
-
-.drag-upload-text {
-  font-size: 14px;
-  color: #4E5969;
-  margin: 0;
-  max-width: 600px;
-  line-height: 1.5;
-}
-
-/* 主内容区 */
-.content-container {
+.file-name {
   flex: 1;
-  overflow: auto;
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  min-height: 0;
+  font-size: 14px;
+  color: #343A40;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.remove-button {
+  color: #6C757D;
+  padding: 4px;
+}
+
+.remove-button:hover {
+  color: #DC3545;
 }
 
 /* 操作按钮 */
 .action-buttons {
   display: flex;
-  gap: 16px;
-  width: 100%;
+  gap: 12px;
+  margin-top: 8px;
 }
 
-.action-button {
+.process-button {
   flex: 1;
-  height: 40px;
-  font-size: 14px;
-  border-radius: 6px;
-  transition: all 0.3s ease;
-  padding: 0 20px;
-}
-
-.primary-button {
   background-color: #165DFF;
   border-color: #165DFF;
   color: #FFFFFF;
-  font-weight: 500;
-}
-
-.primary-button:hover {
-  background-color: #0E42D2;
-  border-color: #0E42D2;
-}
-
-.primary-button:active {
-  background-color: #0E42D2;
-  border-color: #0E42D2;
-  transform: translateY(1px);
-}
-
-.secondary-button {
-  background-color: #FFFFFF;
-  border-color: #C9CDD4;
-  color: #4E5969;
-  font-weight: 400;
-}
-
-.secondary-button:hover {
-  border-color: #165DFF;
-  color: #165DFF;
-}
-
-.secondary-button:active {
-  border-color: #0E42D2;
-  color: #0E42D2;
-  transform: translateY(1px);
-}
-
-/* 文件上传提示 */
-.upload-tip {
-  padding: 24px;
-  background-color: #F2F3F5;
-  border-radius: 8px;
-  text-align: center;
-  margin-bottom: 16px;
-}
-
-.tip-text {
-  font-size: 14px;
-  color: #4E5969;
-  margin: 0;
-}
-
-/* 已上传文件 */
-.uploaded-files {
-  width: 100%;
-}
-
-.files-title {
-  font-size: 16px;
-  font-weight: 500;
-  color: #1D2129;
-  margin: 0 0 16px 0;
-}
-
-.file-card {
-  background-color: #F2F3F5;
   border-radius: 6px;
-  padding: 16px;
-  margin-bottom: 12px;
+  height: 40px;
+  font-size: 14px;
   transition: all 0.3s ease;
 }
 
-.file-card:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+.process-button:hover:not(:disabled) {
+  background-color: #0E42D2;
+  border-color: #0E42D2;
 }
 
-.file-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.file-icon {
-  color: #165DFF;
-  font-size: 18px;
-}
-
-.file-name {
+.clear-button {
   flex: 1;
-  font-weight: 400;
-  color: #4E5969;
+  background-color: #FFFFFF;
+  border-color: #CED4DA;
+  color: #495057;
+  border-radius: 6px;
+  height: 40px;
   font-size: 14px;
+  transition: all 0.3s ease;
 }
 
-.file-size {
-  color: #4E5969;
-  font-size: 12px;
-}
-
-.remove-button {
-  opacity: 0.7;
-  transition: opacity 0.3s ease;
-}
-
-.remove-button:hover {
-  opacity: 1;
+.clear-button:hover:not(:disabled) {
+  border-color: #165DFF;
+  color: #165DFF;
 }
 
 /* 设置面板 */
 .settings-panel {
-  background-color: #F2F3F5;
+  margin-top: 24px;
+  padding: 20px;
+  background-color: #FFFFFF;
+  border: 1px solid #E9ECEF;
   border-radius: 8px;
-  padding: 24px;
   animation: slideDown 0.3s ease;
+}
+
+.settings-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #343A40;
+  margin: 0 0 16px 0;
 }
 
 @keyframes slideDown {
@@ -588,57 +413,181 @@ const formatFileSize = (bytes: number): string => {
   }
 }
 
-.error-alert {
+/* 结果区域 */
+.result-section {
+  background-color: #FFFFFF;
+  border: 1px solid #E9ECEF;
   border-radius: 8px;
+  overflow: hidden;
 }
 
-/* 结果面板 */
-.result-panel-container {
-  flex: 1;
-  min-height: 0;
-  margin-top: 16px;
+/* 标签页 */
+.result-tabs {
+  border-bottom: 1px solid #E9ECEF;
 }
 
-/* 隐藏的上传控件 */
-.hidden-upload {
-  display: none;
+.result-tabs :deep(.el-tabs__nav) {
+  padding-left: 24px;
+}
+
+.result-tabs :deep(.el-tabs__item) {
+  height: 48px;
+  line-height: 48px;
+  padding: 0 24px;
+  margin-right: 0;
+  color: #6C757D;
+  font-size: 14px;
+  font-weight: 400;
+  transition: all 0.3s ease;
+}
+
+.result-tabs :deep(.el-tabs__item:hover) {
+  color: #165DFF;
+}
+
+.result-tabs :deep(.el-tabs__item.is-active) {
+  color: #165DFF;
+  font-weight: 500;
+}
+
+.result-tabs :deep(.el-tabs__active-bar) {
+  background-color: #165DFF;
+  height: 2px;
+}
+
+/* 结果内容 */
+.result-content {
+  min-height: 400px;
+  padding: 24px;
+}
+
+/* 加载状态 */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 400px;
+  gap: 16px;
+}
+
+.loading-text {
+  font-size: 14px;
+  color: #6C757D;
+  margin: 0;
+}
+
+/* 空状态 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 400px;
+  gap: 16px;
+}
+
+.empty-icon {
+  width: 120px;
+  height: 120px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect x='20' y='30' width='80' height='60' rx='4' fill='%23F8F9FA' stroke='%23E9ECEF' stroke-width='2'/%3E%3Crect x='40' y='15' width='40' height='20' rx='2' fill='%23F8F9FA' stroke='%23E9ECEF' stroke-width='2'/%3E%3Crect x='30' y='40' width='60' height='10' rx='2' fill='%23E9ECEF'/%3E%3Crect x='30' y='55' width='50' height='8' rx='2' fill='%23E9ECEF'/%3E%3Crect x='30' y='70' width='40' height='8' rx='2' fill='%23E9ECEF'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.empty-text {
+  font-size: 14px;
+  color: #6C757D;
+  margin: 0;
+}
+
+/* 标签内容 */
+.result-tab-content {
+  min-height: 400px;
+}
+
+.markdown-content {
+  min-height: 400px;
+  line-height: 1.6;
+  color: #343A40;
+}
+
+.source-content {
+  min-height: 400px;
+}
+
+.source-textarea {
+  height: 100%;
+  min-height: 400px;
+}
+
+.source-textarea :deep(.el-textarea__wrapper) {
+  border: 1px solid #E9ECEF;
+  border-radius: 4px;
+  box-shadow: none;
+  height: 100%;
+  min-height: 400px;
+}
+
+.source-textarea :deep(.el-textarea__inner) {
+  height: 100%;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #495057;
+  padding: 16px;
+}
+
+.mindmap-content {
+  min-height: 400px;
+  height: 100%;
 }
 
 /* 响应式设计 */
 @media (max-width: 768px) {
-  .nav-bar {
+  .main-content {
+    padding: 16px;
+  }
+  
+  .top-header {
     padding: 12px 16px;
   }
   
-  .app-title {
-    font-size: 18px;
+  .page-title {
+    font-size: 16px;
   }
   
-  .subtitle {
+  .drag-upload-area {
+    padding: 32px 16px;
+  }
+  
+  .upload-icon {
+    font-size: 32px;
+  }
+  
+  .upload-text {
+    font-size: 14px;
+  }
+  
+  .upload-hint {
     font-size: 12px;
-  }
-  
-  .header-actions {
-    gap: 8px;
-  }
-  
-  .upload-button,
-  .settings-button {
-    padding: 0 12px;
-    font-size: 12px;
-  }
-  
-  .content-container {
-    padding: 16px;
-    gap: 16px;
   }
   
   .action-buttons {
     flex-direction: column;
   }
   
-  .action-button {
-    width: 100%;
+  .result-content {
+    padding: 16px;
+  }
+  
+  .result-tabs :deep(.el-tabs__nav) {
+    padding-left: 16px;
+  }
+  
+  .result-tabs :deep(.el-tabs__item) {
+    padding: 0 16px;
+    font-size: 12px;
   }
 }
 </style>
