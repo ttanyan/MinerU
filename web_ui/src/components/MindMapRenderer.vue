@@ -65,8 +65,6 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, onUnmounted, nextTick } from 'vue'
-import { Transformer } from 'markmap-lib'
-import { loadCSS, loadJS } from 'markmap-view'
 import { Download, Refresh, ZoomIn, ZoomOut, Document } from '@element-plus/icons-vue'
 
 // 为 window.Markmap 添加类型声明
@@ -85,7 +83,7 @@ const props = defineProps({
 
 const svgRef = ref<SVGElement | null>(null)
 let mmInstance: any = null
-const transformer = new Transformer()
+let transformer: any = null
 const scale = ref(1)
 
 const nodeCount = computed(() => {
@@ -99,48 +97,48 @@ const initMarkmap = async () => {
 
   try {
     console.log('Initializing markmap with content:', props.content.substring(0, 100) + '...')
+    
+    // 检查全局 Markmap 对象是否存在
+    if (!window.Markmap) {
+      console.error('Markmap is not loaded')
+      return
+    }
+    
+    // 初始化 transformer
+    if (!transformer) {
+      transformer = new window.Markmap.Transformer()
+    }
+    
     // 1. 转换数据
     const { root, features } = transformer.transform(props.content)
     console.log('Transformed root:', root)
 
-    // 2. 加载必要的资源
-    const { styles, scripts } = transformer.getAssets()
-    console.log('Loading assets:', { styles: !!styles, scripts: !!scripts })
-    if (styles) loadCSS(styles)
-    if (scripts) {
-      await loadJS(scripts)
-      // 3. 创建或更新实例
-      await nextTick()
-      console.log('SVG ref:', svgRef.value)
-      
-      // 使用全局 Markmap 对象
-      if (window.Markmap) {
-        if (mmInstance) {
-          console.log('Updating existing instance')
-          mmInstance.setData(root)
-          mmInstance.fit()
-        } else {
-          console.log('Creating new instance')
-          mmInstance = window.Markmap.create(svgRef.value, {
-            autoFit: true,
-            fitRatio: 0.9,
-            initialExpandLevel: -1,
-            color: {
-              primary: '#165DFF',
-              secondary: '#4E5969',
-              tertiary: '#86909C'
-            },
-            padding: 60,
-            nodePadding: 12,
-            lineWidth: 2,
-            spacingVertical: 40,
-            spacingHorizontal: 60
-          }, root)
-          console.log('Created instance:', mmInstance)
-        }
-      } else {
-        console.error('Markmap is not loaded')
-      }
+    // 2. 创建或更新实例
+    await nextTick()
+    console.log('SVG ref:', svgRef.value)
+    
+    if (mmInstance) {
+      console.log('Updating existing instance')
+      mmInstance.setData(root)
+      mmInstance.fit()
+    } else {
+      console.log('Creating new instance')
+      mmInstance = window.Markmap.create(svgRef.value, {
+        autoFit: true,
+        fitRatio: 0.9,
+        initialExpandLevel: -1,
+        color: {
+          primary: '#165DFF',
+          secondary: '#4E5969',
+          tertiary: '#86909C'
+        },
+        padding: 60,
+        nodePadding: 12,
+        lineWidth: 2,
+        spacingVertical: 40,
+        spacingHorizontal: 60
+      }, root)
+      console.log('Created instance:', mmInstance)
     }
   } catch (error) {
     console.error('Error initializing markmap:', error)
