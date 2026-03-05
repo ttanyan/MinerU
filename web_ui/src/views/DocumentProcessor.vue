@@ -1,94 +1,131 @@
 <template>
   <div class="document-processor">
-    <div class="header-section">
-      <h1 class="app-title">智能解析 <span class="subtitle">让文档内容为AI所用</span></h1>
-    </div>
-    
-    <el-row :gutter="30" class="main-content">
-      <!-- 左侧上传和设置区域 -->
-      <el-col :span="12">
-        <div class="upload-card">
-          <div class="upload-header">
-            <h2 class="card-title">上传文件</h2>
-            <el-button 
-              type="default" 
-              :icon="Setting"
-              size="small"
-              @click="toggleSettings"
-              class="settings-button"
-            >
-              设置
-            </el-button>
+    <div class="workspace">
+      <!-- 导航栏 -->
+      <header class="nav-bar">
+        <h1 class="app-title">智能解析 <span class="subtitle">让文档内容为AI所用</span></h1>
+        <div class="header-actions">
+          <el-button 
+            type="default" 
+            :icon="Setting"
+            @click="toggleSettings"
+            class="settings-button"
+          >
+            设置
+          </el-button>
+        </div>
+      </header>
+      
+      <!-- 拖拽上传区 -->
+      <div 
+        class="drag-upload-area"
+        :class="{ 'drag-over': isDragging }"
+        @drop="handleDrop"
+        @dragover.prevent="isDragging = true"
+        @dragleave="isDragging = false"
+        @click="triggerUpload"
+      >
+        <div class="drag-upload-content">
+          <div class="file-icons">
+            <el-icon class="file-icon pdf-icon"><Document /></el-icon>
+            <el-icon class="file-icon word-icon"><Document /></el-icon>
+            <el-icon class="file-icon docker-icon"><Document /></el-icon>
+            <el-icon class="file-icon png-icon"><Picture /></el-icon>
           </div>
+          <p class="drag-upload-text">支持 PDF、Word、Docker、PNG 文件格式，点击或拖拽文件至此上传</p>
+        </div>
+      </div>
+      
+      <!-- 主内容区 -->
+      <div class="content-container">
+        <!-- 操作按钮 -->
+        <div class="action-buttons" v-if="uploadedFiles.length > 0">
+          <el-button 
+            type="primary" 
+            size="large"
+            :loading="isProcessing"
+            @click="processDocument"
+            :disabled="uploadedFiles.length === 0"
+            class="action-button primary-button"
+          >
+            <el-icon><MagicStick /></el-icon>
+            {{ $t('common.convert') }}
+          </el-button>
           
-          <!-- 文件上传 -->
-          <FileUploader 
-            v-model="uploadedFiles"
-            class="upload-section"
-          />
-          
-          <!-- 设置面板 -->
-          <div v-if="showSettings" class="settings-panel">
-            <ConfigPanel 
-              v-model="config"
-              :backend-options="backendOptions"
-              :language-options="languageOptions"
-              @backend-change="handleBackendChange"
-            />
+          <el-button 
+            @click="clearAll"
+            size="large"
+            class="action-button secondary-button"
+          >
+            <el-icon><Delete /></el-icon>
+            {{ $t('common.clear') }}
+          </el-button>
+        </div>
+        
+        <!-- 已上传文件 -->
+        <div v-if="uploadedFiles.length > 0" class="uploaded-files">
+          <h3 class="files-title">已上传文件</h3>
+          <div class="file-card" v-for="(file, index) in uploadedFiles" :key="index">
+            <div class="file-info">
+              <el-icon class="file-icon"><Document /></el-icon>
+              <span class="file-name">{{ file.name }}</span>
+              <span class="file-size">({{ formatFileSize(file.size) }})</span>
+              <el-button 
+                type="danger" 
+                :icon="Delete" 
+                circle 
+                size="small"
+                @click="removeFile(index)"
+                class="remove-button"
+              />
+            </div>
           </div>
-          
-          <!-- 操作按钮 -->
-          <div class="action-buttons">
-            <el-button 
-              type="primary" 
-              size="large"
-              :loading="isProcessing"
-              @click="processDocument"
-              :disabled="uploadedFiles.length === 0"
-              class="convert-button"
-            >
-              <el-icon><MagicStick /></el-icon>
-              {{ $t('common.convert') }}
-            </el-button>
-            
-            <el-button 
-              @click="clearAll"
-              size="large"
-              class="clear-button"
-            >
-              <el-icon><Delete /></el-icon>
-              {{ $t('common.clear') }}
-            </el-button>
-          </div>
-          
-          <!-- 错误提示 -->
-          <el-alert
-            v-if="error"
-            :title="error"
-            type="error"
-            show-icon
-            closable
-            @close="error = null"
-            class="error-alert"
+        </div>
+        
+        <!-- 设置面板 -->
+        <div v-if="showSettings" class="settings-panel">
+          <ConfigPanel 
+            v-model="config"
+            :backend-options="backendOptions"
+            :language-options="languageOptions"
+            @backend-change="handleBackendChange"
           />
         </div>
-      </el-col>
-      
-      <!-- 右侧结果面板 -->
-      <el-col :span="12">
-        <div class="result-card">
-          <h2 class="card-title">处理结果</h2>
+        
+        <!-- 错误提示 -->
+        <el-alert
+          v-if="error"
+          :title="error"
+          type="error"
+          show-icon
+          closable
+          @close="error = null"
+          class="error-alert"
+        />
+        
+        <!-- 结果面板 -->
+        <div class="result-panel-container">
           <ResultPanel :result="results" />
         </div>
-      </el-col>
-    </el-row>
+      </div>
+    </div>
+    
+    <!-- 隐藏的文件输入 -->
+    <input
+      ref="fileInput"
+      type="file"
+      multiple
+      accept=".pdf,.doc,.docx,.dockerfile,Dockerfile,.png"
+      style="position: absolute; width: 0; height: 0; overflow: hidden;"
+      @change="handleFileInputChange"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { MagicStick, Delete, Setting } from '@element-plus/icons-vue'
-import FileUploader from '@/components/FileUploader.vue'
+import { MagicStick, Delete, Setting, Upload, Document } from '@element-plus/icons-vue'
+import type { UploadFile, UploadInstance } from 'element-plus'
 import ConfigPanel from '@/components/ConfigPanel.vue'
 import ResultPanel from '@/components/ResultPanel.vue'
 import { useDocumentProcessor } from '@/composables/useDocumentProcessor'
@@ -102,7 +139,6 @@ const {
   error,
   backendOptions,
   languageOptions,
-  handleFileUpload,
   clearAll,
   processDocument,
   getFormulaLabel,
@@ -110,6 +146,8 @@ const {
 } = useDocumentProcessor()
 
 const showSettings = ref(false)
+const fileInput = ref<HTMLInputElement | null>(null)
+const isDragging = ref(false)
 
 const toggleSettings = () => {
   showSettings.value = !showSettings.value
@@ -119,89 +157,359 @@ const handleBackendChange = (backend: string) => {
   // 可以在这里添加后端切换的额外逻辑
   console.log('Backend changed to:', backend)
 }
+
+const triggerUpload = () => {
+  console.log('triggerUpload called')
+  console.log('fileInput.value:', fileInput.value)
+  if (fileInput.value) {
+    console.log('Clicking file input')
+    fileInput.value.click()
+  } else {
+    console.log('fileInput.value is null')
+  }
+}
+
+const handleFileInputChange = (event: Event) => {
+  const input = event.target as HTMLInputElement
+  if (input.files) {
+    const files = Array.from(input.files)
+    files.forEach(file => {
+      uploadedFiles.value.push(file)
+    })
+    // 清空input值，允许重复选择同一个文件
+    input.value = ''
+  }
+}
+
+const handleDrop = (event: DragEvent) => {
+  event.preventDefault()
+  isDragging.value = false
+  
+  if (event.dataTransfer?.files) {
+    const files = Array.from(event.dataTransfer.files)
+    files.forEach(file => {
+      uploadedFiles.value.push(file)
+    })
+  }
+}
+
+const removeFile = (index: number) => {
+  uploadedFiles.value.splice(index, 1)
+}
+
+const formatFileSize = (bytes: number): string => {
+  if (bytes === 0) return '0 Bytes'
+  const k = 1024
+  const sizes = ['Bytes', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
 </script>
 
 <style scoped>
 .document-processor {
+  height: 100vh;
+  overflow: hidden;
+  background-color: #F2F3F5;
+}
+
+.workspace {
   height: 100%;
+  background-color: #FFFFFF;
   display: flex;
   flex-direction: column;
 }
 
-.header-section {
-  margin-bottom: 30px;
+/* 导航栏 */
+.nav-bar {
+  background-color: #ffffff;
+  padding: 16px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .app-title {
   font-size: 20px;
   font-weight: 600;
-  color: #409EFF;
+  color: #1D2129;
   margin: 0;
 }
 
 .subtitle {
   font-size: 14px;
   font-weight: 400;
-  color: #606266;
-  margin-left: 10px;
+  color: #4E5969;
+  margin-left: 12px;
 }
 
-.main-content {
-  flex: 1;
-  min-height: 0;
+.header-actions {
+  display: flex;
+  gap: 16px;
+  align-items: center;
 }
 
-.upload-card,
-.result-card {
-  background-color: #ffffff;
-  border: 1px solid #E4E7ED;
-  border-radius: 8px;
-  padding: 30px;
-  height: 100%;
-  box-sizing: border-box;
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.08);
+/* 上传按钮 */
+.upload-button {
+  background-color: #165DFF;
+  border-color: #165DFF;
+  color: #FFFFFF;
+  font-weight: 500;
+  border-radius: 6px;
+  height: 40px;
+  padding: 0 20px;
   transition: all 0.3s ease;
 }
 
-.upload-card:hover,
-.result-card:hover {
-  box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.12);
+.upload-button:hover {
+  background-color: #0E42D2;
+  border-color: #0E42D2;
 }
 
-.upload-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
+.upload-button:active {
+  background-color: #0E42D2;
+  border-color: #0E42D2;
+  transform: translateY(1px);
 }
 
-.card-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #303133;
-  margin: 0;
-}
-
+/* 设置按钮 */
 .settings-button {
-  border-color: #DCDFE6;
-  color: #606266;
+  border-color: #C9CDD4;
+  color: #4E5969;
+  border-radius: 6px;
+  height: 40px;
+  padding: 0 16px;
+  transition: all 0.3s ease;
+  font-size: 14px;
+  font-weight: 400;
 }
 
 .settings-button:hover {
-  border-color: #1677FF;
-  color: #1677FF;
+  border-color: #165DFF;
+  color: #165DFF;
 }
 
-.upload-section {
-  margin-bottom: 24px;
+.settings-button:active {
+  border-color: #0E42D2;
+  color: #0E42D2;
+  transform: translateY(1px);
 }
 
-.settings-panel {
+/* 拖拽上传区 */
+.drag-upload-area {
+  border: 1px dashed #DCDFE6;
   background-color: #F9FAFC;
-  border: 1px solid #E4E7ED;
+  padding: 48px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.drag-upload-area:hover {
+  border-color: #165DFF;
+  background-color: #ECF5FF;
+}
+
+.drag-upload-area.drag-over {
+  border-color: #165DFF;
+  background-color: #ECF5FF;
+}
+
+.drag-upload-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.file-icons {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  position: relative;
+  height: 64px;
+}
+
+.file-icon {
+  font-size: 32px;
+  position: absolute;
+  transition: all 0.3s ease;
+}
+
+.pdf-icon {
+  color: #FF0000;
+  left: 0;
+  z-index: 4;
+  transform: translateX(0);
+}
+
+.word-icon {
+  color: #1E40AF;
+  left: 24px;
+  z-index: 3;
+  transform: translateX(10%);
+}
+
+.docker-icon {
+  color: #2496ED;
+  left: 48px;
+  z-index: 2;
+  transform: translateX(20%);
+}
+
+.png-icon {
+  color: #FF6B6B;
+  left: 72px;
+  z-index: 1;
+  transform: translateX(30%);
+}
+
+.drag-upload-text {
+  font-size: 14px;
+  color: #4E5969;
+  margin: 0;
+  max-width: 600px;
+  line-height: 1.5;
+}
+
+/* 主内容区 */
+.content-container {
+  flex: 1;
+  overflow: auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* 操作按钮 */
+.action-buttons {
+  display: flex;
+  gap: 16px;
+  width: 100%;
+}
+
+.action-button {
+  flex: 1;
+  height: 40px;
+  font-size: 14px;
   border-radius: 6px;
-  padding: 20px;
-  margin-bottom: 24px;
+  transition: all 0.3s ease;
+  padding: 0 20px;
+}
+
+.primary-button {
+  background-color: #165DFF;
+  border-color: #165DFF;
+  color: #FFFFFF;
+  font-weight: 500;
+}
+
+.primary-button:hover {
+  background-color: #0E42D2;
+  border-color: #0E42D2;
+}
+
+.primary-button:active {
+  background-color: #0E42D2;
+  border-color: #0E42D2;
+  transform: translateY(1px);
+}
+
+.secondary-button {
+  background-color: #FFFFFF;
+  border-color: #C9CDD4;
+  color: #4E5969;
+  font-weight: 400;
+}
+
+.secondary-button:hover {
+  border-color: #165DFF;
+  color: #165DFF;
+}
+
+.secondary-button:active {
+  border-color: #0E42D2;
+  color: #0E42D2;
+  transform: translateY(1px);
+}
+
+/* 文件上传提示 */
+.upload-tip {
+  padding: 24px;
+  background-color: #F2F3F5;
+  border-radius: 8px;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.tip-text {
+  font-size: 14px;
+  color: #4E5969;
+  margin: 0;
+}
+
+/* 已上传文件 */
+.uploaded-files {
+  width: 100%;
+}
+
+.files-title {
+  font-size: 16px;
+  font-weight: 500;
+  color: #1D2129;
+  margin: 0 0 16px 0;
+}
+
+.file-card {
+  background-color: #F2F3F5;
+  border-radius: 6px;
+  padding: 16px;
+  margin-bottom: 12px;
+  transition: all 0.3s ease;
+}
+
+.file-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.file-icon {
+  color: #165DFF;
+  font-size: 18px;
+}
+
+.file-name {
+  flex: 1;
+  font-weight: 400;
+  color: #4E5969;
+  font-size: 14px;
+}
+
+.file-size {
+  color: #4E5969;
+  font-size: 12px;
+}
+
+.remove-button {
+  opacity: 0.7;
+  transition: opacity 0.3s ease;
+}
+
+.remove-button:hover {
+  opacity: 1;
+}
+
+/* 设置面板 */
+.settings-panel {
+  background-color: #F2F3F5;
+  border-radius: 8px;
+  padding: 24px;
   animation: slideDown 0.3s ease;
 }
 
@@ -216,36 +524,57 @@ const handleBackendChange = (backend: string) => {
   }
 }
 
-.action-buttons {
-  display: flex;
-  gap: 16px;
-  margin: 24px 0;
-}
-
-.convert-button,
-.clear-button {
-  flex: 1;
-  height: 48px;
-  font-size: 16px;
-}
-
 .error-alert {
-  margin-top: 24px;
+  border-radius: 8px;
 }
 
-@media (max-width: 1200px) {
-  .main-content {
+/* 结果面板 */
+.result-panel-container {
+  flex: 1;
+  min-height: 0;
+  margin-top: 16px;
+}
+
+/* 隐藏的上传控件 */
+.hidden-upload {
+  display: none;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .nav-bar {
+    padding: 12px 16px;
+  }
+  
+  .app-title {
+    font-size: 18px;
+  }
+  
+  .subtitle {
+    font-size: 12px;
+  }
+  
+  .header-actions {
+    gap: 8px;
+  }
+  
+  .upload-button,
+  .settings-button {
+    padding: 0 12px;
+    font-size: 12px;
+  }
+  
+  .content-container {
+    padding: 16px;
+    gap: 16px;
+  }
+  
+  .action-buttons {
     flex-direction: column;
   }
   
-  .el-col {
-    width: 100% !important;
-    margin-bottom: 30px;
-  }
-  
-  .upload-card,
-  .result-card {
-    height: auto;
+  .action-button {
+    width: 100%;
   }
 }
 </style>

@@ -1,19 +1,18 @@
 <template>
   <div class="result-panel">
-    <div class="panel-header">
-      <span class="panel-title">{{ $t('results.title') }}</span>
+    <div class="panel-header" v-if="result">
       <el-button 
-        v-if="result" 
         type="primary" 
         :icon="Download"
         @click="downloadResult"
         size="small"
+        class="download-button"
       >
         {{ $t('results.download') }}
       </el-button>
     </div>
     
-    <el-tabs v-model="activeTab" class="result-tabs" type="card" :border="false">
+    <el-tabs v-model="activeTab" class="result-tabs">
       <el-tab-pane :label="$t('results.tabs.markdown')" name="markdown">
         <MarkdownRenderer :content="result?.markdown || ''" />
       </el-tab-pane>
@@ -74,15 +73,22 @@ const downloadResult = () => {
 
 .panel-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
-.panel-title {
-  font-weight: 500;
-  font-size: 16px;
-  color: #303133;
+.download-button {
+  border-radius: 6px;
+  transition: all 0.3s ease;
+  background-color: #165DFF;
+  border-color: #165DFF;
+}
+
+.download-button:hover {
+  background-color: #0E42D2;
+  border-color: #0E42D2;
+  transform: scale(1.05);
 }
 
 .result-tabs {
@@ -91,30 +97,38 @@ const downloadResult = () => {
 }
 
 .result-tabs :deep(.el-tabs__content) {
-  height: calc(100% - 40px);
-  padding-top: 20px;
+  height: calc(100% - 48px);
+  padding-top: 16px;
 }
 
 .result-tabs :deep(.el-tab-pane) {
   height: 100%;
 }
 
+/* 极简Tab样式 */
 .result-tabs :deep(.el-tabs__nav) {
-  border-bottom: 1px solid #E4E7ED;
+  border: none;
+  padding: 0;
 }
 
 .result-tabs :deep(.el-tabs__item) {
-  height: 40px;
-  line-height: 40px;
-  padding: 0 20px;
-  margin-right: 40px;
-  color: #606266;
+  height: 48px;
+  line-height: 48px;
+  padding: 0 24px;
+  margin-right: 24px;
+  color: #4E5969;
   font-size: 14px;
+  font-weight: 400;
   position: relative;
+  transition: all 0.3s ease;
+}
+
+.result-tabs :deep(.el-tabs__item:hover) {
+  color: #165DFF;
 }
 
 .result-tabs :deep(.el-tabs__item.is-active) {
-  color: #1677FF;
+  color: #165DFF;
   font-weight: 500;
 }
 
@@ -123,18 +137,30 @@ const downloadResult = () => {
   position: absolute;
   bottom: 0;
   left: 0;
-  width: 100%;
+  right: 0;
   height: 2px;
-  background-color: #1677FF;
+  background-color: #165DFF;
   border-radius: 1px;
+  transition: all 0.3s ease;
 }
 
-.result-tabs :deep(.el-tabs__item:hover) {
-  color: #1677FF;
+.result-tabs :deep(.el-tabs__active-bar) {
+  display: none;
 }
 
 .source-textarea {
   height: 100%;
+}
+
+.source-textarea :deep(.el-textarea__wrapper) {
+  border: 1px solid #C9CDD4;
+  border-radius: 8px;
+  box-shadow: none;
+  transition: all 0.3s ease;
+}
+
+.source-textarea :deep(.el-textarea__wrapper:hover) {
+  border-color: #165DFF;
 }
 
 .source-textarea :deep(.el-textarea__inner) {
@@ -142,8 +168,7 @@ const downloadResult = () => {
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   font-size: 14px;
   line-height: 1.5;
-  border: 1px solid #E4E7ED;
-  border-radius: 4px;
-  color: #303133;
+  color: #4E5969;
+  padding: 16px;
 }
 </style>

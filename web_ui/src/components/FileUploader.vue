@@ -1,21 +1,18 @@
 <template>
   <div class="file-uploader">
-    <div class="upload-container">
+    <div 
+      class="upload-container"
+      :class="{ 'drag-over': isDragging }"
+      @drop="handleDrop"
+      @dragover.prevent="isDragging = true"
+      @dragleave="isDragging = false"
+      @click="triggerUpload"
+    >
       <div class="upload-content">
-        <div class="upload-icon-container">
-          <el-icon class="main-upload-icon"><UploadFilled /></el-icon>
-        </div>
-        <div class="upload-buttons">
-          <el-button 
-            type="primary" 
-            @click="triggerUpload"
-            class="upload-button"
-          >
-            上传文件
-          </el-button>
-        </div>
-        <div class="upload-tip">
-          支持 PDF、PNG、JPG、JPEG 格式，最大 100MB
+        <el-icon class="upload-icon"><UploadFilled /></el-icon>
+        <div class="upload-text">
+          <div class="main-text">点击或拖拽文件到此处上传</div>
+          <div class="sub-text">支持 PDF、PNG、JPG、JPEG 格式，最大 100MB</div>
         </div>
       </div>
     </div>
@@ -47,7 +44,7 @@
             :icon="Delete" 
             circle 
             size="small"
-            @click="removeFile(index)"
+            @click.stop="removeFile(index)"
             class="remove-button"
           />
         </div>
@@ -74,6 +71,7 @@ const emit = defineEmits<Emits>()
 
 const files = ref<File[]>(props.modelValue)
 const uploadRef = ref<UploadInstance>()
+const isDragging = ref(false)
 
 // 监听外部值变化
 watch(() => props.modelValue, (newVal) => {
@@ -92,6 +90,20 @@ const triggerUpload = () => {
 const handleFileChange = (uploadFile: UploadFile) => {
   if (uploadFile.raw) {
     files.value.push(uploadFile.raw)
+  }
+}
+
+const handleDrop = (event: DragEvent) => {
+  event.preventDefault()
+  isDragging.value = false
+  
+  if (event.dataTransfer?.files) {
+    const droppedFiles = Array.from(event.dataTransfer.files)
+    droppedFiles.forEach(file => {
+      if (file.type.match(/(pdf|png|jpe?g)/i)) {
+        files.value.push(file)
+      }
+    })
   }
 }
 
@@ -119,72 +131,58 @@ const formatFileSize = (bytes: number): string => {
 }
 
 .upload-container {
-  border: 1px dashed #DCDFE6;
+  border: 2px dashed #C9CDD4;
   border-radius: 8px;
-  background-color: #F9FAFC;
-  padding: 40px 20px;
+  background-color: #FFFFFF;
+  padding: 60px 24px;
   text-align: center;
   transition: all 0.3s ease;
   margin-bottom: 24px;
+  cursor: pointer;
 }
 
 .upload-container:hover {
-  border-color: #1677FF;
-  background-color: #ECF5FF;
+  border-color: #165DFF;
+  background-color: #E8F3FF;
+}
+
+.upload-container.drag-over {
+  border-color: #165DFF;
+  background-color: #E8F3FF;
+}
+
+.upload-container.drag-over .upload-icon {
+  transform: scale(1.1);
 }
 
 .upload-content {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 24px;
+  gap: 20px;
 }
 
-.upload-icon-container {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  background-color: #ECF5FF;
+.upload-icon {
+  font-size: 24px;
+  color: #165DFF;
+  transition: transform 0.3s ease;
+}
+
+.upload-text {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 8px;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.main-upload-icon {
-  font-size: 40px;
-  color: #1677FF;
-  opacity: 0.9;
-}
-
-.upload-buttons {
-  display: flex;
-  gap: 12px;
-}
-
-.upload-button {
-  padding: 12px 32px;
+.main-text {
   font-size: 16px;
-  border-radius: 6px;
-  background-color: #1677FF;
-  border-color: #1677FF;
-  transition: all 0.3s ease;
+  font-weight: 400;
+  color: #1D2129;
 }
 
-.upload-button:hover {
-  background-color: #409EFF;
-  border-color: #409EFF;
-}
-
-.upload-button:active {
-  background-color: #096DD9;
-  border-color: #096DD9;
-}
-
-.upload-tip {
-  font-size: 14px;
-  color: #909399;
-  margin-top: 10px;
+.sub-text {
+  font-size: 12px;
+  color: #4E5969;
 }
 
 .hidden-upload {
@@ -197,14 +195,13 @@ const formatFileSize = (bytes: number): string => {
 
 .preview-title {
   font-size: 16px;
-  font-weight: 600;
-  color: #303133;
+  font-weight: 500;
+  color: #1D2129;
   margin: 0 0 16px 0;
 }
 
 .file-card {
-  background-color: #F9FAFC;
-  border: 1px solid #E4E7ED;
+  background-color: #F2F3F5;
   border-radius: 6px;
   padding: 16px;
   margin-bottom: 12px;
@@ -212,8 +209,7 @@ const formatFileSize = (bytes: number): string => {
 }
 
 .file-card:hover {
-  border-color: #1677FF;
-  box-shadow: 0 2px 4px rgba(22, 119, 255, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .file-info {
@@ -223,24 +219,25 @@ const formatFileSize = (bytes: number): string => {
 }
 
 .file-icon {
-  color: #1677FF;
+  color: #165DFF;
   font-size: 18px;
 }
 
 .file-name {
   flex: 1;
-  font-weight: 500;
-  color: #303133;
+  font-weight: 400;
+  color: #4E5969;
   font-size: 14px;
 }
 
 .file-size {
-  color: #909399;
+  color: #4E5969;
   font-size: 12px;
 }
 
 .remove-button {
   opacity: 0.7;
+  transition: opacity 0.3s ease;
 }
 
 .remove-button:hover {

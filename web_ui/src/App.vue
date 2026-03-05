@@ -1,10 +1,8 @@
 <template>
   <div id="app">
-    <el-container class="main-container">
-      <el-main class="main-content">
-        <DocumentProcessor />
-      </el-main>
-    </el-container>
+    <div class="container">
+      <DocumentProcessor />
+    </div>
   </div>
 </template>
 
@@ -24,22 +22,19 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   font-size: 14px;
   line-height: 1.5;
-  color: #303133;
-  background-color: #F5F7FA;
+  color: #4E5969;
+  background-color: #F2F3F5;
 }
 
 #app {
   height: 100vh;
 }
-</style>
 
-<style scoped>
-.main-container {
-  height: 100vh;
-}
-
-.main-content {
-  padding: 40px;
-  background-color: #F5F7FA;
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+  height: 100%;
+  box-sizing: border-box;
 }
 </style>
