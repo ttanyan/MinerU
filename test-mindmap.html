@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>思维导图测试</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      background-color: #f5f5f5;
+      font-family: Arial, sans-serif;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    h1 {
+      text-align: center;
+      color: #333;
+    }
+    .mindmap-container {
+      width: 100%;
+      height: 80vh;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>思维导图测试</h1>
+    <div class="mindmap-container">
+      <svg id="mindmap-svg" width="100%" height="100%"></svg>
+    </div>
+  </div>
+
+  <!-- 引用本地的markmap脚本 -->
+  <script src="./web_ui/public/markmap/d3.min.js"></script>
+  <script src="./web_ui/public/markmap/markmap-view.js"></script>
+  <script src="./web_ui/public/markmap/markmap-toolbar.js"></script>
+  <script src="./web_ui/public/markmap/markmap-lib.js"></script>
+
+  <script>
+    // 测试Markdown内容
+    const markdownContent = `# 测试思维导图
+
+## 一级标题 1
+
+### 二级标题 1.1
+
+#### 三级标题 1.1.1
+
+#### 三级标题 1.1.2
+
+### 二级标题 1.2
+
+## 一级标题 2
+
+### 二级标题 2.1
+
+### 二级标题 2.2`;
+
+    // 初始化思维导图
+    async function initMindmap() {
+      try {
+        console.log('Initializing mindmap...');
+        
+        // 检查markmap是否加载
+        if (!window.markmap) {
+          console.error('Markmap is not loaded');
+          return;
+        }
+        
+        console.log('Markmap is loaded:', window.markmap);
+        
+        // 初始化transformer
+        const transformer = new window.markmap.Markmap.Transformer();
+        console.log('Transformer initialized:', transformer);
+        
+        // 转换数据
+        const { root, features } = transformer.transform(markdownContent);
+        console.log('Transformed root:', root);
+        
+        // 创建markmap实例
+        const svg = document.getElementById('mindmap-svg');
+        const mm = window.markmap.Markmap.create(svg, {
+          autoFit: true,
+          fitRatio: 0.9,
+          initialExpandLevel: -1,
+          color: {
+            primary: '#165DFF',
+            secondary: '#4E5969',
+            tertiary: '#86909C'
+          },
+          padding: 60,
+          nodePadding: 12,
+          lineWidth: 2,
+          spacingVertical: 40,
+          spacingHorizontal: 60
+        }, root);
+        
+        console.log('Mindmap created:', mm);
+        
+      } catch (error) {
+        console.error('Error initializing mindmap:', error);
+      }
+    }
+
+    // 页面加载完成后初始化
+    window.addEventListener('load', initMindmap);
+  </script>
+</body>
+</html>

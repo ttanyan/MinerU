@@ -67,12 +67,9 @@
 import { ref, computed, onMounted, watch, onUnmounted, nextTick } from 'vue'
 import { Download, Refresh, ZoomIn, ZoomOut, Document } from '@element-plus/icons-vue'
 
-// 为 window.markmap 添加类型声明
-declare global {
-  interface Window {
-    markmap: any
-  }
-}
+// 导入 markmap 相关包
+import * as markmap from 'markmap-view'
+import { Transformer } from 'markmap-lib'
 
 const props = defineProps({
   content: {
@@ -88,8 +85,8 @@ const scale = ref(1)
 
 // 检查并初始化 Markmap
 const checkMarkmap = () => {
-  if (window.markmap) {
-    console.log('Markmap is loaded:', window.markmap)
+  if (markmap) {
+    console.log('Markmap is loaded:', markmap)
     return true
   } else {
     console.error('Markmap is not loaded')
@@ -115,30 +112,39 @@ const initMarkmap = async () => {
     // 检查 Markmap 是否加载
     if (!checkMarkmap()) return
     
+    // 从导入的 markmap 中获取所需对象
+    const { Markmap, loadCSS, loadJS } = markmap
+    console.log('Markmap object:', Markmap)
+    console.log('loadCSS function:', loadCSS)
+    console.log('loadJS function:', loadJS)
+    
     // 初始化 transformer
     if (!transformer) {
-      // 尝试不同的Transformer初始化方式
-      if (window.markmap.Transformer) {
-        transformer = new window.markmap.Transformer()
-        console.log('Transformer initialized from window.markmap.Transformer:', transformer)
-      } else if (window.markmap.Markmap && window.markmap.Markmap.Transformer) {
-        transformer = new window.markmap.Markmap.Transformer()
-        console.log('Transformer initialized from window.markmap.Markmap.Transformer:', transformer)
-      } else {
-        console.error('Transformer not found in markmap object')
-        return
-      }
+      transformer = new Transformer()
+      console.log('Transformer initialized:', transformer)
     }
     
     // 1. 转换数据
-    const { root, features } = transformer.transform(props.content)
+    const { root, styles, scripts } = transformer.transform(props.content)
     console.log('Transformed root:', root)
+    console.log('Styles:', styles)
+    console.log('Scripts:', scripts)
 
-    // 2. 创建或更新实例
+    // 2. 加载资产
+    if (styles) {
+      loadCSS(styles)
+      console.log('Loaded styles')
+    }
+    if (scripts) {
+      loadJS(scripts, {
+        getMarkmap: () => markmap
+      })
+      console.log('Loaded scripts')
+    }
+
+    // 3. 创建或更新实例
     console.log('SVG ref:', svgRef.value)
-    console.log('window.markmap:', window.markmap)
-    console.log('window.markmap.Markmap:', window.markmap.Markmap)
-    console.log('window.markmap.create:', window.markmap.create)
+    console.log('Markmap.create:', Markmap.create)
     
     if (mmInstance) {
       console.log('Updating existing instance')
@@ -146,9 +152,8 @@ const initMarkmap = async () => {
       mmInstance.fit()
     } else {
       console.log('Creating new instance')
-      // 尝试不同的创建实例方式
-      if (window.markmap.Markmap && window.markmap.Markmap.create) {
-        mmInstance = window.markmap.Markmap.create(svgRef.value, {
+      if (Markmap.create) {
+        mmInstance = Markmap.create(svgRef.value, {
           autoFit: true,
           fitRatio: 0.9,
           initialExpandLevel: -1,
@@ -163,26 +168,9 @@ const initMarkmap = async () => {
           spacingVertical: 40,
           spacingHorizontal: 60
         }, root)
-        console.log('Created instance using window.markmap.Markmap.create:', mmInstance)
-      } else if (window.markmap.create) {
-        mmInstance = window.markmap.create(svgRef.value, {
-          autoFit: true,
-          fitRatio: 0.9,
-          initialExpandLevel: -1,
-          color: {
-            primary: '#165DFF',
-            secondary: '#4E5969',
-            tertiary: '#86909C'
-          },
-          padding: 60,
-          nodePadding: 12,
-          lineWidth: 2,
-          spacingVertical: 40,
-          spacingHorizontal: 60
-        }, root)
-        console.log('Created instance using window.markmap.create:', mmInstance)
+        console.log('Created instance using Markmap.create:', mmInstance)
       } else {
-        console.error('Create method not found in markmap object')
+        console.error('Create method not found in Markmap object')
         return
       }
     }
