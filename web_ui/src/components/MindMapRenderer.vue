@@ -83,21 +83,27 @@ const initMarkmap = async () => {
   if (!props.content || !svgRef.value) return
 
   try {
+    console.log('Initializing markmap with content:', props.content.substring(0, 100) + '...')
     // 1. 转换数据
     const { root, features } = transformer.transform(props.content)
+    console.log('Transformed root:', root)
 
     // 2. 加载必要的资源
     const { styles, scripts } = transformer.getAssets()
+    console.log('Loading assets:', { styles: !!styles, scripts: !!scripts })
     if (styles) loadCSS(styles)
     if (scripts) loadJS(scripts)
 
     // 3. 创建或更新实例
     await nextTick()
+    console.log('SVG ref:', svgRef.value)
 
     if (mmInstance) {
+      console.log('Updating existing instance')
       mmInstance.setData(root)
       mmInstance.fit()
     } else {
+      console.log('Creating new instance')
       mmInstance = Markmap.create(svgRef.value, {
         autoFit: true,
         fitRatio: 0.9,
@@ -113,6 +119,7 @@ const initMarkmap = async () => {
         spacingVertical: 40,
         spacingHorizontal: 60
       }, root)
+      console.log('Created instance:', mmInstance)
     }
   } catch (error) {
     console.error('Error initializing markmap:', error)

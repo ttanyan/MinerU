@@ -4,12 +4,12 @@
     <header class="top-header">
       <h1 class="page-title">思维导图</h1>
       <el-button 
-        type="text" 
-        @click="toggleSettings"
-        class="settings-button"
-      >
-        设置
-      </el-button>
+          type="link" 
+          @click="toggleSettings"
+          class="settings-button"
+        >
+          设置
+        </el-button>
     </header>
     
     <!-- 主内容区域 -->
@@ -37,7 +37,7 @@
               <el-icon class="file-icon"><Document /></el-icon>
               <span class="file-name">{{ file.name }}</span>
               <el-button 
-                type="text" 
+                type="link" 
                 :icon="Delete" 
                 @click.stop="removeFile(index)"
                 class="remove-button"
@@ -53,7 +53,7 @@
           <div class="settings-header">
             <h3 class="settings-title">设置</h3>
             <el-button 
-              type="text" 
+              type="link" 
               @click="toggleSettings"
               class="close-button"
             >
@@ -81,10 +81,10 @@
         <!-- 结果内容 -->
         <div class="result-content">
           <!-- 加载状态 -->
-          <div v-if="isProcessing" class="loading-container">
-            <el-spinner :size="48" />
-            <p class="loading-text">正在处理文档...</p>
-          </div>
+        <div v-if="isProcessing" class="loading-container">
+          <el-icon class="loading-icon"><Loading /></el-icon>
+          <p class="loading-text">正在处理文档...</p>
+        </div>
           
           <!-- 无结果状态 -->
           <div v-else-if="!results" class="empty-state">
@@ -133,7 +133,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { Delete, Document, Folder, Setting, Close } from '@element-plus/icons-vue'
+import { Delete, Document, Folder, Setting, Close, Loading } from '@element-plus/icons-vue'
 import ConfigPanel from '@/components/ConfigPanel.vue'
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 import MindMapRenderer from '@/components/MindMapRenderer.vue'
@@ -159,7 +159,49 @@ const activeTab = ref('markdown')
 const isUploadAreaCollapsed = ref(false)
 
 const toggleSettings = () => {
-  showSettings.value = !showSettings.value
+  if (showSettings.value) {
+    // 关闭设置面板，添加动画
+    const settingsPanel = document.querySelector('.settings-panel')
+    if (settingsPanel) {
+      settingsPanel.classList.remove('showing')
+      settingsPanel.classList.add('hiding')
+      setTimeout(() => {
+        showSettings.value = false
+        settingsPanel.classList.remove('hiding')
+        // 移除点击外部关闭事件
+        document.removeEventListener('click', handleClickOutside)
+      }, 400)
+    }
+  } else {
+    // 打开设置面板
+    showSettings.value = true
+    // 确保 DOM 更新后添加 showing 类
+    setTimeout(() => {
+      const settingsPanel = document.querySelector('.settings-panel')
+      if (settingsPanel) {
+        settingsPanel.classList.add('showing')
+      }
+      // 添加点击外部关闭事件
+      document.addEventListener('click', handleClickOutside)
+    }, 10)
+  }
+}
+
+const handleClickOutside = (event: MouseEvent) => {
+  const settingsPanel = document.querySelector('.settings-panel')
+  const settingsButton = document.querySelector('.settings-button')
+  
+  if (settingsPanel && !settingsPanel.contains(event.target as Node) && 
+      settingsButton && !settingsButton.contains(event.target as Node)) {
+    // 关闭设置面板，添加动画
+    settingsPanel.classList.remove('showing')
+    settingsPanel.classList.add('hiding')
+    setTimeout(() => {
+      showSettings.value = false
+      settingsPanel.classList.remove('hiding')
+      document.removeEventListener('click', handleClickOutside)
+    }, 400)
+  }
 }
 
 const handleBackendChange = (backend: string) => {
@@ -428,8 +470,22 @@ const clearAllFiles = () => {
   box-shadow: -4px 0 12px rgba(0, 0, 0, 0.1);
   padding: 24px;
   z-index: 1000;
-  animation: slideInFromRight 0.3s ease;
+  transform: translateX(100%);
+  opacity: 0;
+  transition: transform 0.3s ease, opacity 0.4s ease;
   overflow-y: auto;
+}
+
+.settings-panel.showing {
+  transform: translateX(0);
+  opacity: 1;
+  transition: transform 0.3s ease, opacity 0.4s ease;
+}
+
+.settings-panel.hiding {
+  transform: translateX(100%);
+  opacity: 0;
+  transition: transform 0.3s ease, opacity 0.4s ease;
 }
 
 .settings-header {
@@ -458,16 +514,7 @@ const clearAllFiles = () => {
   margin: 0;
 }
 
-@keyframes slideInFromRight {
-  from {
-    opacity: 0;
-    transform: translateX(100%);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
+
 
 /* 结果区域 */
 .result-section {
@@ -527,10 +574,21 @@ const clearAllFiles = () => {
   gap: 16px;
 }
 
+.loading-icon {
+  font-size: 48px;
+  color: #165DFF;
+  animation: spin 1s linear infinite;
+}
+
 .loading-text {
   font-size: 14px;
   color: #6C757D;
   margin: 0;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 /* 空状态 */
@@ -595,8 +653,8 @@ const clearAllFiles = () => {
 }
 
 .mindmap-content {
-  min-height: 400px;
-  height: 100%;
+  min-height: 500px;
+  height: 600px;
 }
 
 /* 响应式设计 */
