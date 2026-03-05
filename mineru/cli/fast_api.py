@@ -11,6 +11,7 @@ from pathlib import Path
 import glob
 from fastapi import Depends, FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from starlette.background import BackgroundTask
 import json
@@ -80,6 +81,15 @@ def create_app():
     if max_concurrent_requests > 0:
         _request_semaphore = asyncio.Semaphore(max_concurrent_requests)
         logger.info(f"Request concurrency limited to {max_concurrent_requests}")
+
+    # 添加CORS中间件
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],  # 在生产环境中应该设置具体的域名
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     app.add_middleware(GZipMiddleware, minimum_size=1000)
     return app

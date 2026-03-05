@@ -65,7 +65,7 @@ export const documentApi = {
     
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest()
-      xhr.open('POST', '/file_parse')
+      xhr.open('POST', 'http://localhost:8000/file_parse')
       
       xhr.onprogress = (event) => {
         if (event.target && event.target.responseText) {
