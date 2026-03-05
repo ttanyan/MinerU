@@ -12,7 +12,14 @@
       </el-button>
     </div>
     
-    <el-tabs v-model="activeTab" class="result-tabs">
+    <!-- 加载状态 -->
+    <div v-if="isProcessing" class="loading-container">
+      <el-spinner :size="64" />
+      <p class="loading-text">处理中...</p>
+    </div>
+    
+    <!-- 结果内容 -->
+    <el-tabs v-else v-model="activeTab" class="result-tabs">
       <el-tab-pane :label="$t('results.tabs.markdown')" name="markdown">
         <MarkdownRenderer :content="result?.markdown || ''" />
       </el-tab-pane>
@@ -43,6 +50,7 @@ import MindMapRenderer from './MindMapRenderer.vue'
 
 interface Props {
   result: ProcessResult | null
+  isProcessing: boolean
 }
 
 const props = defineProps<Props>()
@@ -170,5 +178,21 @@ const downloadResult = () => {
   line-height: 1.5;
   color: #4E5969;
   padding: 16px;
+}
+
+/* 加载状态 */
+.loading-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+}
+
+.loading-text {
+  margin-top: 16px;
+  font-size: 16px;
+  color: #4E5969;
 }
 </style>
