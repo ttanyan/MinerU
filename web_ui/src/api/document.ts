@@ -58,7 +58,7 @@ export const documentApi = {
       formData.append('server_url', params.server_url)
     }
     
-    return request.post('http://localhost:8000/file_parse', formData, {
+    return request.post('/file_parse', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
