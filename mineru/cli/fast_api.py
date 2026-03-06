@@ -134,7 +134,7 @@ def get_infer_result(file_suffix_identifier: str, pdf_name: str, parse_dir: str)
 
 @app.post(path="/file_parse", dependencies=[Depends(limit_concurrency)])
 async def parse_pdf(
-        files: List[UploadFile] = File(..., description="Upload pdf or image files for parsing"),
+        files: List[UploadFile] = File(..., description="Upload pdf, image, or Word files for parsing"),
         output_dir: str = Form("./output", description="Output local directory"),
         lang_list: List[str] = Form(
             ["ch"],

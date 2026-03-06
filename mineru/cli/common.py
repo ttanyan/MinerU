@@ -42,31 +42,110 @@ def read_fn(path):
             return file_bytes
         elif file_suffix in word_suffixes:
             # 处理Word文件，转换为PDF
-            from docx import Document
-            from reportlab.lib.pagesizes import letter
-            from reportlab.pdfgen import canvas
             from io import BytesIO
             
-            # 读取Word文件
-            doc = Document(BytesIO(file_bytes))
-            
-            # 创建PDF
-            output = BytesIO()
-            c = canvas.Canvas(output, pagesize=letter)
-            width, height = letter
-            
-            # 写入内容
-            y = height - 100
-            for para in doc.paragraphs:
-                if y < 100:
-                    c.showPage()
-                    y = height - 100
-                c.drawString(100, y, para.text)
-                y -= 20
-            
-            c.save()
-            output.seek(0)
-            return output.read()
+            try:
+                if file_suffix == "docx":
+                    # 处理.docx文件
+                    from docx import Document
+                    from reportlab.lib.pagesizes import letter
+                    from reportlab.pdfgen import canvas
+                    from reportlab.lib.styles import getSampleStyleSheet
+                    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+                    
+                    # 读取Word文件
+                    doc = Document(BytesIO(file_bytes))
+                    
+                    # 创建PDF
+                    output = BytesIO()
+                    doc_pdf = SimpleDocTemplate(output, pagesize=letter)
+                    story = []
+                    styles = getSampleStyleSheet()
+                    
+                    # 写入内容，保留基本格式
+                    for para in doc.paragraphs:
+                        # 处理段落文本
+                        text = para.text
+                        if text:
+                            # 根据段落样式设置PDF样式
+                            if para.style.name.startswith('Heading'):
+                                # 标题样式
+                                level = int(para.style.name[-1]) if para.style.name[-1].isdigit() else 1
+                                if level == 1:
+                                    story.append(Paragraph(text, styles['Heading1']))
+                                elif level == 2:
+                                    story.append(Paragraph(text, styles['Heading2']))
+                                elif level == 3:
+                                    story.append(Paragraph(text, styles['Heading3']))
+                                else:
+                                    story.append(Paragraph(text, styles['Normal']))
+                            else:
+                                # 普通段落
+                                story.append(Paragraph(text, styles['Normal']))
+                            story.append(Spacer(1, 12))
+                    
+                    # 构建PDF
+                    doc_pdf.build(story)
+                    output.seek(0)
+                    return output.read()
+                elif file_suffix == "doc":
+                    # 处理.doc文件
+                    # 尝试使用antiword（如果可用）
+                    try:
+                        import subprocess
+                        import tempfile
+                        
+                        # 创建临时文件
+                        with tempfile.NamedTemporaryFile(suffix='.doc', delete=False) as temp_doc:
+                            temp_doc.write(file_bytes)
+                            temp_doc_path = temp_doc.name
+                        
+                        try:
+                            # 尝试使用antiword转换为文本
+                            result = subprocess.run(
+                                ['antiword', temp_doc_path],
+                                capture_output=True,
+                                text=True,
+                                check=True
+                            )
+                            text_content = result.stdout
+                            
+                            # 将文本转换为PDF
+                            from reportlab.lib.pagesizes import letter
+                            from reportlab.pdfgen import canvas
+                            
+                            output = BytesIO()
+                            c = canvas.Canvas(output, pagesize=letter)
+                            width, height = letter
+                            
+                            # 写入内容
+                            y = height - 100
+                            lines = text_content.split('\n')
+                            for line in lines:
+                                if y < 100:
+                                    c.showPage()
+                                    y = height - 100
+                                c.drawString(100, y, line)
+                                y -= 15
+                            
+                            c.save()
+                            output.seek(0)
+                            return output.read()
+                        finally:
+                            # 清理临时文件
+                            import os
+                            if os.path.exists(temp_doc_path):
+                                os.remove(temp_doc_path)
+                    except (ImportError, subprocess.SubprocessError):
+                        # 如果antiword不可用，使用简单的文本提取
+                        logger.warning("antiword not available, using basic text extraction for .doc files")
+                        # 这里可以添加其他.doc文件处理逻辑
+                        raise Exception("Cannot process .doc files without antiword installed")
+                else:
+                    raise Exception(f"Unsupported Word file format: {file_suffix}")
+            except Exception as e:
+                logger.exception(f"Error converting Word file to PDF: {e}")
+                raise Exception(f"Failed to convert Word file to PDF: {str(e)}")
         else:
             raise Exception(f"Unknown file suffix: {file_suffix}")
 
