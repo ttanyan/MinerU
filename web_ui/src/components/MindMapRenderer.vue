@@ -2,7 +2,6 @@
   <div class="mindmap-container">
     <div class="mindmap-header">
       <div class="header-left">
-        <h3 class="mindmap-title">思维导图</h3>
         <span class="mindmap-subtitle" v-if="content">已生成 {{ nodeCount }} 个节点</span>
       </div>
       <div class="mindmap-actions">
@@ -27,28 +26,6 @@
             <el-icon><Refresh /></el-icon>
           </template>
           重置视图
-        </el-button>
-        <el-button 
-          type="default" 
-          size="small"
-          @click="zoomIn"
-          class="action-button secondary"
-        >
-          <template #icon>
-            <el-icon><ZoomIn /></el-icon>
-          </template>
-          放大
-        </el-button>
-        <el-button 
-          type="default" 
-          size="small"
-          @click="zoomOut"
-          class="action-button secondary"
-        >
-          <template #icon>
-            <el-icon><ZoomOut /></el-icon>
-          </template>
-          缩小
         </el-button>
       </div>
     </div>
