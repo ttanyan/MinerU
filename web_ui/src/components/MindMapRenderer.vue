@@ -110,32 +110,36 @@ const initMarkmap = async () => {
     // 3. 创建或更新实例
     await nextTick()
     console.log('SVG ref:', svgRef.value)
+    console.log('Markmap.create:', Markmap.create)
     
     if (mmInstance) {
       console.log('Updating existing instance')
-      mmInstance.setData(root)
-      mmInstance.fit()
+      if (typeof mmInstance.setData === 'function') {
+        mmInstance.setData(root)
+        mmInstance.fit()
+      } else {
+        console.error('mmInstance does not have setData method:', mmInstance)
+        // 创建新实例
+        mmInstance = Markmap.create(svgRef.value, {
+          autoFit: true,
+          fitRatio: 0.9,
+          initialExpandLevel: -1
+        }, root)
+        console.log('Created new instance after setData error:', mmInstance)
+      }
     } else {
       console.log('Creating new instance')
       mmInstance = Markmap.create(svgRef.value, {
         autoFit: true,
         fitRatio: 0.9,
-        initialExpandLevel: -1,
-        color: {
-          primary: '#165DFF',
-          secondary: '#4E5969',
-          tertiary: '#86909C'
-        },
-        padding: 60,
-        nodePadding: 12,
-        lineWidth: 2,
-        spacingVertical: 40,
-        spacingHorizontal: 60
+        initialExpandLevel: -1
       }, root)
       console.log('Created instance using Markmap.create:', mmInstance)
+      console.log('mmInstance methods:', Object.keys(mmInstance))
     }
   } catch (error) {
     console.error('Error initializing markmap:', error)
+    mmInstance = null
   }
 }
 
@@ -152,8 +156,10 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
-  if (mmInstance) {
+  if (mmInstance && typeof mmInstance.destroy === 'function') {
     mmInstance.destroy()
+  } else if (mmInstance) {
+    console.error('mmInstance does not have destroy method:', mmInstance)
   }
 })
 
@@ -202,8 +208,10 @@ const zoomOut = () => {
 
 // 应用缩放
 const applyZoom = () => {
-  if (mmInstance) {
+  if (mmInstance && typeof mmInstance.setScale === 'function') {
     mmInstance.setScale(scale.value)
+  } else if (mmInstance) {
+    console.error('mmInstance does not have setScale method:', mmInstance)
   }
 }
 
