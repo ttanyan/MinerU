@@ -2,7 +2,7 @@
   <div class="document-processor">
     <!-- 顶部标题栏 -->
     <header class="top-header">
-      <h1 class="page-title">思维导图</h1>
+      <h2 class="ellipsis" title="思维导图">思维导图</h2>
       <el-button 
           type="text" 
           @click="toggleSettings"
@@ -289,11 +289,15 @@ const clearAllFiles = () => {
   border-bottom: none;
 }
 
-.page-title {
+.ellipsis {
   font-size: 18px;
   font-weight: 500;
   color: #343A40;
   margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
 }
 
 .settings-button {
@@ -330,7 +334,7 @@ const clearAllFiles = () => {
 .drag-upload-area {
   border: 2px dashed #CED4DA;
   border-radius: 8px;
-  padding: 40px 24px;
+  padding: 20px 24px;
   text-align: center;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -340,9 +344,9 @@ const clearAllFiles = () => {
 }
 
 .drag-upload-area.collapsed {
-  padding: 16px 24px;
-  min-height: 60px;
-  max-height: 100px;
+  padding: 10px 24px;
+  min-height: 40px;
+  max-height: 80px;
 }
 
 .drag-upload-area:hover {
@@ -527,6 +531,9 @@ const clearAllFiles = () => {
   border: 1px solid #E9ECEF;
   border-radius: 8px;
   overflow: hidden;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 /* 标签页 */
@@ -535,13 +542,13 @@ const clearAllFiles = () => {
 }
 
 .result-tabs :deep(.el-tabs__nav) {
-  padding-left: 24px;
+  padding-left: 16px;
 }
 
 .result-tabs :deep(.el-tabs__item) {
-  height: 48px;
-  line-height: 48px;
-  padding: 0 24px;
+  height: 40px;
+  line-height: 40px;
+  padding: 0 16px;
   margin-right: 0;
   color: #6C757D;
   font-size: 14px;
@@ -565,8 +572,11 @@ const clearAllFiles = () => {
 
 /* 结果内容 */
 .result-content {
-  min-height: 400px;
-  padding: 24px;
+  flex: 1;
+  min-height: 0;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
 }
 
 /* 加载状态 */
@@ -622,22 +632,28 @@ const clearAllFiles = () => {
 
 /* 标签内容 */
 .result-tab-content {
-  min-height: 400px;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .markdown-content {
-  min-height: 400px;
+  flex: 1;
+  min-height: 0;
   line-height: 1.6;
   color: #343A40;
+  overflow: auto;
 }
 
 .source-content {
-  min-height: 400px;
+  flex: 1;
+  min-height: 0;
 }
 
 .source-textarea {
   height: 100%;
-  min-height: 400px;
+  min-height: 0;
 }
 
 .source-textarea :deep(.el-textarea__wrapper) {
@@ -645,7 +661,7 @@ const clearAllFiles = () => {
   border-radius: 4px;
   box-shadow: none;
   height: 100%;
-  min-height: 400px;
+  min-height: 0;
 }
 
 .source-textarea :deep(.el-textarea__inner) {
@@ -658,8 +674,7 @@ const clearAllFiles = () => {
 }
 
 .mindmap-content {
-  min-height: 500px;
-  height: 100%;
+  flex: 1;
   min-height: 0;
 }
 
