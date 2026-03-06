@@ -7,7 +7,6 @@ function autoPromoteParagraphsToSubheading(text: string): string {
   const lines = text.split('\n')
   const result: string[] = []
   let inSection = false
-  let emptyCount = 0
   let currentHeadingLevel = 0 // 记录当前标题级别
   
   for (const line of lines) {
@@ -24,33 +23,16 @@ function autoPromoteParagraphsToSubheading(text: string): string {
       }
       result.push(line)
       inSection = true
-      emptyCount = 0
       continue
     }
     
     if (!stripped) {
+      // 空行不需要添加标题，但也不退出标题段落模式
       result.push(line)
-      emptyCount++
-      if (emptyCount >= 2) {
-        inSection = false
-      }
       continue
     }
     
-    // 跳过图片、列表、代码等特殊行
-    if (
-      stripped.startsWith('![') ||
-      stripped.startsWith('>') ||
-      stripped.startsWith('```') ||
-      /^[-*+] /.test(stripped) ||
-      /^\d+\. /.test(stripped)
-    ) {
-      result.push(line)
-      emptyCount = 0
-      continue
-    }
-    
-    emptyCount = 0
+    // 不需要跳过列表、代码等特殊行，都统一处理
     if (inSection && currentHeadingLevel > 0 && currentHeadingLevel < 6) {
       // 根据当前标题级别生成下一级标题
       const nextHeadingLevel = currentHeadingLevel + 1
