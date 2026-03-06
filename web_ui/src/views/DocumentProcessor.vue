@@ -317,13 +317,16 @@ const clearAllFiles = () => {
 .main-content {
   flex: 1;
   padding: 24px;
-  overflow: auto;
+  overflow: hidden;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 /* 上传区域 */
 .upload-section {
-  margin-bottom: 32px;
+  margin-bottom: 16px;
+  flex-shrink: 0;
 }
 
 .section-title {
@@ -537,6 +540,7 @@ const clearAllFiles = () => {
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
 /* 标签页 */
@@ -668,7 +672,8 @@ const clearAllFiles = () => {
   border-radius: 4px;
   box-shadow: none;
   padding: 16px;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   background-color: white;
 }
 
