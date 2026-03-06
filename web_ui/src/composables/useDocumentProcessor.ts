@@ -32,7 +32,13 @@ function autoPromoteParagraphsToSubheading(text: string): string {
       continue
     }
     
-    // 不需要跳过列表、代码等特殊行，都统一处理
+    // 跳过图片行
+    if (stripped.startsWith('![')) {
+      result.push(line)
+      continue
+    }
+    
+    // 其他特殊行（列表、代码等）都统一处理
     if (inSection && currentHeadingLevel > 0 && currentHeadingLevel < 6) {
       // 根据当前标题级别生成下一级标题
       const nextHeadingLevel = currentHeadingLevel + 1
