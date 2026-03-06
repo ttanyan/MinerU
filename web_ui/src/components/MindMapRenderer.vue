@@ -156,9 +156,28 @@ const handleResize = () => {
 const downloadMindMap = (format: 'svg' | 'png' = 'svg') => {
   if (!svgRef.value) return
   
+  // 确保思维导图已经完全渲染
+  if (mmInstance) {
+    mmInstance.fit()
+  }
+  
   if (format === 'svg') {
     const svg = svgRef.value
-    const svgData = new XMLSerializer().serializeToString(svg)
+    // 复制 SVG 元素以确保获取完整结构
+    const svgCopy = svg.cloneNode(true) as SVGElement
+    
+    // 添加必要的命名空间
+    if (!svgCopy.getAttribute('xmlns')) {
+      svgCopy.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+    }
+    
+    // 确保 SVG 大小正确
+    const boundingRect = svg.getBoundingClientRect()
+    svgCopy.setAttribute('width', boundingRect.width.toString())
+    svgCopy.setAttribute('height', boundingRect.height.toString())
+    
+    // 序列化 SVG
+    const svgData = new XMLSerializer().serializeToString(svgCopy)
     const blob = new Blob([svgData], { type: 'image/svg+xml' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -170,15 +189,29 @@ const downloadMindMap = (format: 'svg' | 'png' = 'svg') => {
     URL.revokeObjectURL(url)
   } else if (format === 'png') {
     const svg = svgRef.value
-    const svgData = new XMLSerializer().serializeToString(svg)
+    // 复制 SVG 元素以确保获取完整结构
+    const svgCopy = svg.cloneNode(true) as SVGElement
+    
+    // 添加必要的命名空间
+    if (!svgCopy.getAttribute('xmlns')) {
+      svgCopy.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
+    }
+    
+    // 确保 SVG 大小正确
+    const boundingRect = svg.getBoundingClientRect()
+    svgCopy.setAttribute('width', boundingRect.width.toString())
+    svgCopy.setAttribute('height', boundingRect.height.toString())
+    
+    // 序列化 SVG
+    const svgData = new XMLSerializer().serializeToString(svgCopy)
     const canvas = document.createElement('canvas')
     const ctx = canvas.getContext('2d')
     
     if (!ctx) return
     
     // 设置画布大小
-    canvas.width = svg.clientWidth
-    canvas.height = svg.clientHeight
+    canvas.width = boundingRect.width
+    canvas.height = boundingRect.height
     
     // 创建一个图像对象
     const img = new Image()
