@@ -8,20 +8,22 @@ function autoPromoteParagraphsToSubheading(text: string): string {
   const result: string[] = []
   let inSection = false
   let emptyCount = 0
+  let currentHeadingLevel = 0 // 记录当前标题级别
   
   for (const line of lines) {
     const stripped = line.trim()
     
-    if (stripped.startsWith('# ')) {
+    // 检测标题级别
+    if (stripped.startsWith('#')) {
+      // 计算标题级别（连续的#数量）
+      const headingMatch = stripped.match(/^#+/)  
+      if (headingMatch) {
+        currentHeadingLevel = headingMatch[0].length
+      } else {
+        currentHeadingLevel = 0
+      }
       result.push(line)
       inSection = true
-      emptyCount = 0
-      continue
-    }
-    
-    if (stripped.startsWith('#')) {
-      result.push(line)
-      inSection = false
       emptyCount = 0
       continue
     }
@@ -49,8 +51,11 @@ function autoPromoteParagraphsToSubheading(text: string): string {
     }
     
     emptyCount = 0
-    if (inSection) {
-      result.push('## ' + stripped)
+    if (inSection && currentHeadingLevel > 0 && currentHeadingLevel < 6) {
+      // 根据当前标题级别生成下一级标题
+      const nextHeadingLevel = currentHeadingLevel + 1
+      const headingPrefix = '#'.repeat(nextHeadingLevel)
+      result.push(headingPrefix + ' ' + stripped)
     } else {
       result.push(line)
     }
