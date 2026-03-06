@@ -15,6 +15,16 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+# Install LibreOffice for Word to PDF conversion (minimal installation)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        libreoffice-writer \
+        libreoffice-core \
+        fonts-noto-core \
+        fonts-noto-cjk && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
 # mod torchvision to be compatible with torch 2.6
 RUN sed -i '3s/^Version: 0.15.1+metax3\.1\.0\.4$/Version: 0.21.0+metax3.1.0.4/' /opt/conda/lib/python3.10/site-packages/torchvision-0.15.1+metax3.1.0.4.dist-info/METADATA && \
     mv /opt/conda/lib/python3.10/site-packages/torchvision-0.15.1+metax3.1.0.4.dist-info /opt/conda/lib/python3.10/site-packages/torchvision-0.21.0+metax3.1.0.4.dist-info

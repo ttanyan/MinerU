@@ -41,111 +41,108 @@ def read_fn(path):
         elif file_suffix in pdf_suffixes:
             return file_bytes
         elif file_suffix in word_suffixes:
-            # 处理Word文件，转换为PDF
+            # 处理 Word 文件，转换为 PDF（保持原格式）
             from io import BytesIO
+            import tempfile
+            import os
             
             try:
+                # 方法 1: 使用 LibreOffice 进行高质量转换（推荐）
+                # 创建临时文件
+                with tempfile.NamedTemporaryFile(suffix=f'.{file_suffix}', delete=False) as temp_word:
+                    temp_word.write(file_bytes)
+                    temp_word_path = temp_word.name
+                
+                pdf_fd, pdf_path = tempfile.mkstemp(suffix='.pdf')
+                os.close(pdf_fd)
+                
+                try:
+                    # 使用 LibreOffice 进行转换（保持原格式，包括图片、表格等）
+                    import subprocess
+                    result = subprocess.run(
+                        [
+                            'libreoffice', '--headless', '--convert-to', 'pdf',
+                            '--outdir', os.path.dirname(pdf_path),
+                            temp_word_path
+                        ],
+                        capture_output=True,
+                        timeout=120
+                    )
+                    
+                    if result.returncode == 0:
+                        # LibreOffice 会在同目录下生成 PDF
+                        base_name = os.path.basename(temp_word_path).rsplit('.', 1)[0]
+                        generated_pdf = os.path.join(os.path.dirname(temp_word_path), f"{base_name}.pdf")
+                        
+                        if os.path.exists(generated_pdf):
+                            with open(generated_pdf, 'rb') as f:
+                                pdf_bytes_result = f.read()
+                            os.remove(generated_pdf)
+                            os.remove(temp_word_path)
+                            return pdf_bytes_result
+                    
+                    logger.warning(f"LibreOffice conversion failed: {result.stderr}")
+                    
+                except (subprocess.TimeoutExpired, FileNotFoundError) as libreoffice_error:
+                    logger.warning(f"LibreOffice not available or failed: {libreoffice_error}")
+                    
+                finally:
+                    # 清理临时文件
+                    if os.path.exists(temp_word_path):
+                        os.remove(temp_word_path)
+                    if os.path.exists(pdf_path):
+                        os.remove(pdf_path)
+                
+                # 方法 2: 如果 LibreOffice 不可用，使用 python-docx + reportlab 作为备选
                 if file_suffix == "docx":
-                    # 处理.docx文件
                     from docx import Document
                     from reportlab.lib.pagesizes import letter
                     from reportlab.pdfgen import canvas
-                    from reportlab.lib.styles import getSampleStyleSheet
-                    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
                     
-                    # 读取Word文件
+                    # 读取 Word 文件
                     doc = Document(BytesIO(file_bytes))
                     
-                    # 创建PDF
+                    # 创建 PDF（简单文本转换，不保留复杂格式）
                     output = BytesIO()
-                    doc_pdf = SimpleDocTemplate(output, pagesize=letter)
-                    story = []
-                    styles = getSampleStyleSheet()
+                    c = canvas.Canvas(output, pagesize=letter)
+                    width, height = letter
                     
-                    # 写入内容，保留基本格式
+                    y = height - 50
                     for para in doc.paragraphs:
-                        # 处理段落文本
                         text = para.text
                         if text:
-                            # 根据段落样式设置PDF样式
-                            if para.style.name.startswith('Heading'):
-                                # 标题样式
-                                level = int(para.style.name[-1]) if para.style.name[-1].isdigit() else 1
-                                if level == 1:
-                                    story.append(Paragraph(text, styles['Heading1']))
-                                elif level == 2:
-                                    story.append(Paragraph(text, styles['Heading2']))
-                                elif level == 3:
-                                    story.append(Paragraph(text, styles['Heading3']))
+                            # 处理长文本自动换行
+                            max_width = width - 100
+                            words = text.split(' ')
+                            line = ''
+                            for word in words:
+                                test_line = f"{line} {word}".strip()
+                                if c.stringWidth(test_line, 'Helvetica', 12) < max_width:
+                                    line = test_line
                                 else:
-                                    story.append(Paragraph(text, styles['Normal']))
-                            else:
-                                # 普通段落
-                                story.append(Paragraph(text, styles['Normal']))
-                            story.append(Spacer(1, 12))
+                                    if y < 50:
+                                        c.showPage()
+                                        y = height - 50
+                                    c.drawString(50, y, line)
+                                    y -= 15
+                                    line = word
+                            
+                            # 写入最后一行
+                            if y < 50:
+                                c.showPage()
+                                y = height - 50
+                            c.drawString(50, y, line)
+                            y -= 15
                     
-                    # 构建PDF
-                    doc_pdf.build(story)
+                    c.save()
                     output.seek(0)
                     return output.read()
-                elif file_suffix == "doc":
-                    # 处理.doc文件
-                    # 尝试使用antiword（如果可用）
-                    try:
-                        import subprocess
-                        import tempfile
-                        
-                        # 创建临时文件
-                        with tempfile.NamedTemporaryFile(suffix='.doc', delete=False) as temp_doc:
-                            temp_doc.write(file_bytes)
-                            temp_doc_path = temp_doc.name
-                        
-                        try:
-                            # 尝试使用antiword转换为文本
-                            result = subprocess.run(
-                                ['antiword', temp_doc_path],
-                                capture_output=True,
-                                text=True,
-                                check=True
-                            )
-                            text_content = result.stdout
-                            
-                            # 将文本转换为PDF
-                            from reportlab.lib.pagesizes import letter
-                            from reportlab.pdfgen import canvas
-                            
-                            output = BytesIO()
-                            c = canvas.Canvas(output, pagesize=letter)
-                            width, height = letter
-                            
-                            # 写入内容
-                            y = height - 100
-                            lines = text_content.split('\n')
-                            for line in lines:
-                                if y < 100:
-                                    c.showPage()
-                                    y = height - 100
-                                c.drawString(100, y, line)
-                                y -= 15
-                            
-                            c.save()
-                            output.seek(0)
-                            return output.read()
-                        finally:
-                            # 清理临时文件
-                            import os
-                            if os.path.exists(temp_doc_path):
-                                os.remove(temp_doc_path)
-                    except (ImportError, subprocess.SubprocessError):
-                        # 如果antiword不可用，使用简单的文本提取
-                        logger.warning("antiword not available, using basic text extraction for .doc files")
-                        # 这里可以添加其他.doc文件处理逻辑
-                        raise Exception("Cannot process .doc files without antiword installed")
-                else:
-                    raise Exception(f"Unsupported Word file format: {file_suffix}")
+                
+                raise Exception("Word to PDF conversion failed with all methods")
+                
             except Exception as e:
                 logger.exception(f"Error converting Word file to PDF: {e}")
-                raise Exception(f"Failed to convert Word file to PDF: {str(e)}")
+                raise Exception(f"Failed to convert Word file to PDF: {str(e)}. Please install LibreOffice for better conversion: sudo apt-get install libreoffice")
         else:
             raise Exception(f"Unknown file suffix: {file_suffix}")
 

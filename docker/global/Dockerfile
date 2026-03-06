@@ -18,6 +18,16 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+# Install LibreOffice for Word to PDF conversion (minimal installation)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        libreoffice-writer \
+        libreoffice-core \
+        fonts-noto-core \
+        fonts-noto-cjk && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
 # Install mineru latest
 RUN python3 -m pip install -U 'mineru[core]>=2.7.0' --break-system-packages && \
     python3 -m pip cache purge
