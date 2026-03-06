@@ -269,7 +269,8 @@ const clearAllFiles = () => {
 
 <style scoped>
 .document-processor {
-  height: 100vh;
+  height: 100%;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
   background-color: #F8F9FA;
@@ -281,8 +282,8 @@ const clearAllFiles = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background-color: #FFFFFF;
-  border-bottom: 1px solid #E9ECEF;
+  background-color: transparent;
+  border-bottom: none;
 }
 
 .page-title {
@@ -307,6 +308,7 @@ const clearAllFiles = () => {
   flex: 1;
   padding: 24px;
   overflow: auto;
+  min-height: 0;
 }
 
 /* 上传区域 */
@@ -654,7 +656,8 @@ const clearAllFiles = () => {
 
 .mindmap-content {
   min-height: 500px;
-  height: 600px;
+  height: 100%;
+  min-height: 0;
 }
 
 /* 响应式设计 */

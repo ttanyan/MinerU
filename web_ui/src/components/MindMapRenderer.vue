@@ -298,6 +298,7 @@ const handleWheel = (event: WheelEvent) => {
   border-radius: 8px;
   box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.08);
   overflow: hidden;
+  min-height: 0;
 }
 
 .mindmap-header {
@@ -306,8 +307,8 @@ const handleWheel = (event: WheelEvent) => {
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid #F2F3F5;
-  background-color: #FFFFFF;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  background-color: transparent;
+  box-shadow: none;
 }
 
 .header-left {
@@ -375,6 +376,7 @@ const handleWheel = (event: WheelEvent) => {
   position: relative;
   background-color: #F9FAFC;
   cursor: grab;
+  min-height: 0;
 }
 
 .mindmap-content:active {
