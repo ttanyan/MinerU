@@ -2,6 +2,63 @@ import { ref, reactive } from 'vue'
 import type { Ref } from 'vue'
 import { documentApi, type ParseParams } from '@/api/document'
 
+// 根据上一级标题自动补全下一级标题
+function autoPromoteParagraphsToSubheading(text: string): string {
+  const lines = text.split('\n')
+  const result: string[] = []
+  let inSection = false
+  let emptyCount = 0
+  
+  for (const line of lines) {
+    const stripped = line.trim()
+    
+    if (stripped.startsWith('# ')) {
+      result.push(line)
+      inSection = true
+      emptyCount = 0
+      continue
+    }
+    
+    if (stripped.startsWith('#')) {
+      result.push(line)
+      inSection = false
+      emptyCount = 0
+      continue
+    }
+    
+    if (!stripped) {
+      result.push(line)
+      emptyCount++
+      if (emptyCount >= 2) {
+        inSection = false
+      }
+      continue
+    }
+    
+    // 跳过图片、列表、代码等特殊行
+    if (
+      stripped.startsWith('![') ||
+      stripped.startsWith('>') ||
+      stripped.startsWith('```') ||
+      /^[-*+] /.test(stripped) ||
+      /^\d+\. /.test(stripped)
+    ) {
+      result.push(line)
+      emptyCount = 0
+      continue
+    }
+    
+    emptyCount = 0
+    if (inSection) {
+      result.push('## ' + stripped)
+    } else {
+      result.push(line)
+    }
+  }
+  
+  return result.join('\n')
+}
+
 export interface DocumentConfig {
   maxPages: number
   backend: string
@@ -137,10 +194,12 @@ export function useDocumentProcessor() {
       
       if (response.results) {
         const resultData = Object.values(response.results)[0]
+        const mdContent = resultData.md_content || ''
+        const processedSource = autoPromoteParagraphsToSubheading(mdContent)
         results.value = {
-          markdown: resultData.md_content || '',
-          source: resultData.md_content || '',
-          mindmap: resultData.md_content || ''
+          markdown: mdContent,
+          source: processedSource,
+          mindmap: mdContent
         }
       }
       
