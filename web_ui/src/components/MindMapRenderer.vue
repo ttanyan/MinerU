@@ -1,41 +1,37 @@
 <template>
   <div class="mindmap-container">
-    <div class="mindmap-header">
-      <div class="header-left">
-        <span class="mindmap-subtitle" v-if="content">已生成 {{ nodeCount }} 个节点</span>
-      </div>
-      <div class="mindmap-actions">
-        <el-dropdown @command="handleDownload">
-          <el-button 
-            type="primary" 
-            size="small"
-            class="action-button primary"
-          >
-            <template #icon>
-              <el-icon><Download /></el-icon>
-            </template>
-            下载
-            <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-          </el-button>
-          <template #dropdown>
-            <el-dropdown-menu>
-              <el-dropdown-item command="svg">SVG 格式</el-dropdown-item>
-              <el-dropdown-item command="png">PNG 格式</el-dropdown-item>
-            </el-dropdown-menu>
-          </template>
-        </el-dropdown>
+    <div class="mindmap-actions">
+      <span class="mindmap-subtitle" v-if="content">已生成 {{ nodeCount }} 个节点</span>
+      <el-dropdown @command="handleDownload">
         <el-button 
-          type="default" 
+          type="primary" 
           size="small"
-          @click="resetView"
-          class="action-button secondary"
+          class="action-button primary"
         >
           <template #icon>
-            <el-icon><Refresh /></el-icon>
+            <el-icon><Download /></el-icon>
           </template>
-          重置视图
+          下载
+          <el-icon class="el-icon--right"><ArrowDown /></el-icon>
         </el-button>
-      </div>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item command="svg">SVG 格式</el-dropdown-item>
+            <el-dropdown-item command="png">PNG 格式</el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
+      <el-button 
+        type="default" 
+        size="small"
+        @click="resetView"
+        class="action-button secondary"
+      >
+        <template #icon>
+          <el-icon><Refresh /></el-icon>
+        </template>
+        重置视图
+      </el-button>
     </div>
     <div class="mindmap-content" @wheel.prevent="handleWheel">
       <div class="empty-state" v-if="!content">
@@ -301,27 +297,12 @@ const handleWheel = (event: WheelEvent) => {
   min-height: 0;
 }
 
-.mindmap-header {
-  padding: 16px 24px;
+.mindmap-actions {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid #F2F3F5;
-  background-color: transparent;
-  box-shadow: none;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
+  padding: 10px 16px;
   gap: 12px;
-}
-
-.mindmap-title {
-  font-size: 16px;
-  font-weight: 500;
-  color: #1D2129;
-  margin: 0;
 }
 
 .mindmap-subtitle {
@@ -330,12 +311,7 @@ const handleWheel = (event: WheelEvent) => {
   background-color: #F2F3F5;
   padding: 2px 8px;
   border-radius: 10px;
-}
-
-.mindmap-actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
+  margin-right: auto;
 }
 
 .action-button {
