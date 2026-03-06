@@ -274,6 +274,9 @@ const clearAllFiles = () => {
   display: flex;
   flex-direction: column;
   background-color: #F8F9FA;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 /* 顶部标题栏 */
