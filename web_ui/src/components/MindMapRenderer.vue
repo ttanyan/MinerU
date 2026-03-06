@@ -68,8 +68,8 @@ import { ref, computed, onMounted, watch, onUnmounted, nextTick } from 'vue'
 import { Download, Refresh, ZoomIn, ZoomOut, Document } from '@element-plus/icons-vue'
 
 // 导入 markmap 相关包
-import * as markmap from 'markmap-view'
 import { Transformer } from 'markmap-lib'
+import { Markmap, loadCSS, loadJS } from 'markmap-view'
 
 const props = defineProps({
   content: {
@@ -80,19 +80,8 @@ const props = defineProps({
 
 const svgRef = ref<SVGElement | null>(null)
 let mmInstance: any = null
-let transformer: any = null
+const transformer = new Transformer()
 const scale = ref(1)
-
-// 检查并初始化 Markmap
-const checkMarkmap = () => {
-  if (markmap) {
-    console.log('Markmap is loaded:', markmap)
-    return true
-  } else {
-    console.error('Markmap is not loaded')
-    return false
-  }
-}
 
 const nodeCount = computed(() => {
   if (!props.content) return 0
@@ -106,45 +95,21 @@ const initMarkmap = async () => {
   try {
     console.log('Initializing markmap with content:', props.content.substring(0, 100) + '...')
     
-    // 等待 DOM 更新
-    await nextTick()
-    
-    // 检查 Markmap 是否加载
-    if (!checkMarkmap()) return
-    
-    // 从导入的 markmap 中获取所需对象
-    const { Markmap, loadCSS, loadJS } = markmap
-    console.log('Markmap object:', Markmap)
-    console.log('loadCSS function:', loadCSS)
-    console.log('loadJS function:', loadJS)
-    
-    // 初始化 transformer
-    if (!transformer) {
-      transformer = new Transformer()
-      console.log('Transformer initialized:', transformer)
-    }
-    
     // 1. 转换数据
-    const { root, styles, scripts } = transformer.transform(props.content)
+    const { root, features } = transformer.transform(props.content)
     console.log('Transformed root:', root)
+
+    // 2. 加载必要的资源
+    const { styles, scripts } = transformer.getAssets()
     console.log('Styles:', styles)
     console.log('Scripts:', scripts)
-
-    // 2. 加载资产
-    if (styles) {
-      loadCSS(styles)
-      console.log('Loaded styles')
-    }
-    if (scripts) {
-      loadJS(scripts, {
-        getMarkmap: () => markmap
-      })
-      console.log('Loaded scripts')
-    }
+    
+    if (styles) loadCSS(styles)
+    if (scripts) loadJS(scripts)
 
     // 3. 创建或更新实例
+    await nextTick()
     console.log('SVG ref:', svgRef.value)
-    console.log('Markmap.create:', Markmap.create)
     
     if (mmInstance) {
       console.log('Updating existing instance')
@@ -152,27 +117,22 @@ const initMarkmap = async () => {
       mmInstance.fit()
     } else {
       console.log('Creating new instance')
-      if (Markmap.create) {
-        mmInstance = Markmap.create(svgRef.value, {
-          autoFit: true,
-          fitRatio: 0.9,
-          initialExpandLevel: -1,
-          color: {
-            primary: '#165DFF',
-            secondary: '#4E5969',
-            tertiary: '#86909C'
-          },
-          padding: 60,
-          nodePadding: 12,
-          lineWidth: 2,
-          spacingVertical: 40,
-          spacingHorizontal: 60
-        }, root)
-        console.log('Created instance using Markmap.create:', mmInstance)
-      } else {
-        console.error('Create method not found in Markmap object')
-        return
-      }
+      mmInstance = Markmap.create(svgRef.value, {
+        autoFit: true,
+        fitRatio: 0.9,
+        initialExpandLevel: -1,
+        color: {
+          primary: '#165DFF',
+          secondary: '#4E5969',
+          tertiary: '#86909C'
+        },
+        padding: 60,
+        nodePadding: 12,
+        lineWidth: 2,
+        spacingVertical: 40,
+        spacingHorizontal: 60
+      }, root)
+      console.log('Created instance using Markmap.create:', mmInstance)
     }
   } catch (error) {
     console.error('Error initializing markmap:', error)
