@@ -199,7 +199,7 @@ export function useDocumentProcessor() {
         results.value = {
           markdown: mdContent,
           source: processedSource,
-          mindmap: mdContent
+          mindmap: processedSource
         }
       }
       
