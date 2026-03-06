@@ -5,17 +5,25 @@
         <span class="mindmap-subtitle" v-if="content">已生成 {{ nodeCount }} 个节点</span>
       </div>
       <div class="mindmap-actions">
-        <el-button 
-          type="primary" 
-          size="small"
-          @click="downloadMindMap"
-          class="action-button primary"
-        >
-          <template #icon>
-            <el-icon><Download /></el-icon>
+        <el-dropdown @command="handleDownload">
+          <el-button 
+            type="primary" 
+            size="small"
+            class="action-button primary"
+          >
+            <template #icon>
+              <el-icon><Download /></el-icon>
+            </template>
+            下载
+            <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="svg">SVG 格式</el-dropdown-item>
+              <el-dropdown-item command="png">PNG 格式</el-dropdown-item>
+            </el-dropdown-menu>
           </template>
-          下载
-        </el-button>
+        </el-dropdown>
         <el-button 
           type="default" 
           size="small"
@@ -42,7 +50,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, onUnmounted, nextTick } from 'vue'
-import { Download, Refresh, ZoomIn, ZoomOut, Document } from '@element-plus/icons-vue'
+import { Download, Refresh, ZoomIn, ZoomOut, Document, ArrowDown } from '@element-plus/icons-vue'
 
 // 导入 markmap 相关包
 import { Transformer } from 'markmap-lib'
@@ -145,20 +153,64 @@ const handleResize = () => {
 }
 
 // 下载思维导图
-const downloadMindMap = () => {
+const downloadMindMap = (format: 'svg' | 'png' = 'svg') => {
   if (!svgRef.value) return
   
-  const svg = svgRef.value
-  const svgData = new XMLSerializer().serializeToString(svg)
-  const blob = new Blob([svgData], { type: 'image/svg+xml' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `mindmap_${new Date().getTime()}.svg`
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  URL.revokeObjectURL(url)
+  if (format === 'svg') {
+    const svg = svgRef.value
+    const svgData = new XMLSerializer().serializeToString(svg)
+    const blob = new Blob([svgData], { type: 'image/svg+xml' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `mindmap_${new Date().getTime()}.svg`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  } else if (format === 'png') {
+    const svg = svgRef.value
+    const svgData = new XMLSerializer().serializeToString(svg)
+    const canvas = document.createElement('canvas')
+    const ctx = canvas.getContext('2d')
+    
+    if (!ctx) return
+    
+    // 设置画布大小
+    canvas.width = svg.clientWidth
+    canvas.height = svg.clientHeight
+    
+    // 创建一个图像对象
+    const img = new Image()
+    img.onload = () => {
+      // 绘制图像到画布
+      ctx.drawImage(img, 0, 0)
+      
+      // 将画布转换为 PNG
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = `mindmap_${new Date().getTime()}.png`
+          document.body.appendChild(a)
+          a.click()
+          document.body.removeChild(a)
+          URL.revokeObjectURL(url)
+        }
+      }, 'image/png')
+    }
+    
+    // 将 SVG 数据转换为 Data URL
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgData)
+  }
+}
+
+// 处理下载命令
+const handleDownload = (command: string) => {
+  if (command === 'svg' || command === 'png') {
+    downloadMindMap(command)
+  }
 }
 
 // 重置视图
