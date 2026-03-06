@@ -81,10 +81,10 @@
         <!-- 结果内容 -->
         <div class="result-content">
           <!-- 加载状态 -->
-        <div v-if="isProcessing" class="loading-container">
-          <el-icon class="loading-icon"><Loading /></el-icon>
-          <p class="loading-text">正在处理文档...</p>
-        </div>
+          <div v-if="isProcessing" class="loading-container">
+            <el-icon class="loading-icon"><Loading /></el-icon>
+            <p class="loading-text">正在处理文档...</p>
+          </div>
           
           <!-- 无结果状态 -->
           <div v-else-if="!results" class="empty-state">
@@ -93,7 +93,7 @@
           </div>
           
           <!-- 结果内容 -->
-          <div v-else class="result-tab-content">
+          <div v-else class="result-tab-content result-fade-in">
             <!-- Markdown 渲染 -->
             <div v-show="activeTab === 'markdown'" class="markdown-content">
               <div class="markdown-box">
@@ -639,6 +639,21 @@ const clearAllFiles = () => {
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+
+.result-fade-in {
+  animation: fadeInScale 0.5s ease-out forwards;
+}
+
+@keyframes fadeInScale {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .markdown-content {
