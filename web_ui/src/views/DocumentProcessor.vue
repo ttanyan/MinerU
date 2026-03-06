@@ -96,23 +96,26 @@
           <div v-else class="result-tab-content">
             <!-- Markdown 渲染 -->
             <div v-show="activeTab === 'markdown'" class="markdown-content">
-              <MarkdownRenderer :content="results.markdown || ''" />
+              <div class="markdown-box">
+                <MarkdownRenderer :content="results.markdown || ''" />
+              </div>
             </div>
             
             <!-- Markdown 源码 -->
             <div v-show="activeTab === 'source'" class="source-content">
               <el-input
-                :model-value="results.source"
+                v-model="results.source"
                 type="textarea"
                 :rows="20"
-                readonly
                 class="source-textarea"
               />
             </div>
             
             <!-- 思维导图 -->
             <div v-show="activeTab === 'mindmap'" class="mindmap-content">
-              <MindMapRenderer :content="results?.mindmap || ''" />
+              <div class="mindmap-box">
+                <MindMapRenderer :content="results?.mindmap || ''" />
+              </div>
             </div>
           </div>
         </div>
@@ -641,9 +644,27 @@ const clearAllFiles = () => {
 .markdown-content {
   flex: 1;
   min-height: 0;
-  line-height: 1.6;
-  color: #343A40;
+}
+
+.markdown-box {
+  height: 100%;
+  min-height: 0;
+  border: 1px solid #E9ECEF;
+  border-radius: 4px;
+  box-shadow: none;
+  padding: 16px;
   overflow: auto;
+  background-color: white;
+}
+
+.mindmap-box {
+  height: 100%;
+  min-height: 0;
+  border: 1px solid #E9ECEF;
+  border-radius: 4px;
+  box-shadow: none;
+  overflow: hidden;
+  background-color: white;
 }
 
 .source-content {
