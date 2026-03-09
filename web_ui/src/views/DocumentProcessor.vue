@@ -350,9 +350,10 @@ const clearAllFiles = () => {
 }
 
 .drag-upload-area.collapsed {
-  padding: 10px 24px;
-  min-height: 40px;
-  max-height: 80px;
+  padding: 8px 16px;
+  min-height: 36px;
+  max-height: 60px;
+  display: block;
 }
 
 .drag-upload-area:hover {
@@ -396,15 +397,23 @@ const clearAllFiles = () => {
   text-align: left;
 }
 
+.drag-upload-area.collapsed .uploaded-files {
+  margin-top: 0;
+  width: 100%;
+}
+
 .file-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
+  gap: 8px;
+  padding: 6px 10px;
   background-color: #F8F9FA;
-  border-radius: 6px;
-  margin-bottom: 8px;
+  border-radius: 4px;
+  margin-bottom: 2px;
   transition: all 0.3s ease;
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 13px;
 }
 
 .file-item:hover {
@@ -418,11 +427,12 @@ const clearAllFiles = () => {
 
 .file-name {
   flex: 1;
-  font-size: 14px;
+  font-size: 13px;
   color: #343A40;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: calc(100% - 40px);
 }
 
 .remove-button {
