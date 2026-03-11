@@ -53,52 +53,14 @@ RUN npm install && \
 
 # Create static directory for frontend
 WORKDIR /app
-RUN mkdir -p mineru/cli/static/web
-RUN cp -r web_ui/dist/* mineru/cli/static/web/
-
-# Create start script
-RUN echo '#!/bin/bash
-
-# Start FastAPI server in background
-python3 -m mineru.cli.fast_api --host 0.0.0.0 --port 8000 &
-
-# Wait for server to start
-sleep 3
-
-# Start Nginx to serve frontend
-apt-get update && apt-get install -y nginx && \
-cat > /etc/nginx/conf.d/mineru.conf << EOF
-server {
-    listen 80;
-    server_name localhost;
-
-    location / {
-        root /app/mineru/cli/static/web;
-        index index.html;
-        try_files $uri $uri/ /index.html;
-    }
-
-    location /file_parse {
-        proxy_pass http://localhost:8000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
-}
-EOF
-
-nginx -g "daemon off;"
-' > /app/start.sh && \
-chmod +x /app/start.sh
+RUN mkdir -p mineru/cli/static/web && \
+    cp -r web_ui/dist/* mineru/cli/static/web/
 
 # Expose ports
-EXPOSE 80
 EXPOSE 8000
 
 # Set environment variables
 ENV MINERU_MODEL_SOURCE=local
 
-# Set entry point
-ENTRYPOINT ["/app/start.sh"]
+# Set entry point to start FastAPI server which serves both API and static files
+ENTRYPOINT ["python3", "-m", "mineru.cli.fast_api", "--host", "0.0.0.0", "--port", "8000"]
