@@ -1,0 +1,57 @@
+# --- 第一阶段：前端构建 (Frontend Builder) ---
+# 使用 Node 18 以支持 Vite 的顶层 await 语法，解决之前的 SyntaxError
+FROM node:18-slim AS frontend-builder
+WORKDIR /build
+
+# 复制前端源码
+COPY web_ui ./web_ui
+
+# 安装依赖并构建
+RUN cd web_ui && \
+    npm install && \
+    npm run build
+
+# --- 第二阶段：运行环境 (Final Image) ---
+# 基于你指定的 vllm-openai 镜像
+FROM docker.m.daocloud.io/vllm/vllm-openai:v0.10.1.1
+
+WORKDIR /app
+
+# 合并安装系统依赖，减少镜像层数 [cite: 2, 4]
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        fonts-noto-core \
+        fonts-noto-cjk \
+        fontconfig \
+        libgl1 \
+        libreoffice-writer \
+        libreoffice-core && \
+    fc-cache -fv && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# 1. 复制项目所有后端文件
+COPY . .
+
+# 2. 从第一阶段复制编译好的前端静态文件
+# 注意：请确认 /app/web_ui/dist 是你后端框架挂载静态页面的路径
+COPY --from=frontend-builder /build/web_ui/dist /app/web_ui/dist
+
+# 3. 安装 MinerU 核心组件
+RUN python3 -m pip install -U 'mineru[core]>=2.7.0' \
+    -i https://mirrors.aliyun.com/pypi/simple \
+    --break-system-packages && \
+    python3 -m pip cache purge
+
+# 4. 下载 AI 模型（由于你已有 3070 Ti，建议下载全量模型进行本地推理）
+RUN /bin/bash -c "mineru-models-download -s modelscope -m all"
+
+# 设置环境变量
+ENV MINERU_MODEL_SOURCE=local
+
+# 暴露必要的端口
+# 8000: API, 7860: Gradio/UI, 30000: vLLM, 8080: Web
+EXPOSE 8000 7860 30000 8080
+
+# 设置入口点
+ENTRYPOINT ["/bin/bash", "-c", "exec \"$@\"", "--"]

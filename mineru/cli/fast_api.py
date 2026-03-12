@@ -17,6 +17,7 @@ from starlette.background import BackgroundTask
 import json
 from typing import List, Optional
 from loguru import logger
+from starlette.staticfiles import StaticFiles
 
 log_level = os.getenv("MINERU_LOG_LEVEL", "INFO").upper()
 logger.remove()  # 移除默认handler
@@ -32,21 +33,23 @@ from mineru.version import __version__
 # 并发控制器
 _request_semaphore: Optional[asyncio.Semaphore] = None
 
+
 # 进度跟踪类
 class ProgressTracker:
     def __init__(self):
         self.progress = 0
         self.status = "初始化"
-        
+
     def update(self, progress: float, status: str):
         self.progress = progress
         self.status = status
-        
+
     def get_progress(self):
         return {
             "progress": self.progress,
             "status": self.status
         }
+
 
 # 并发控制依赖函数
 async def limit_concurrency():
@@ -60,6 +63,7 @@ async def limit_concurrency():
             yield
     else:
         yield
+
 
 def create_app():
     # By default, the OpenAPI documentation endpoints (openapi_url, docs_url, redoc_url) are enabled.
@@ -92,7 +96,16 @@ def create_app():
     )
 
     app.add_middleware(GZipMiddleware, minimum_size=1000)
+    # 挂载静态文件
+    static_dir = os.path.join(os.path.dirname(__file__), 'static', 'web')
+    if os.path.exists(static_dir):
+        logger.info(f"Mounting static files from {static_dir}")
+        app.mount('/', StaticFiles(directory=static_dir, html=True), name='web')
+    else:
+        logger.warning(f"Static directory {static_dir} does not exist, skipping static file mounting")
+
     return app
+
 
 app = create_app()
 
@@ -109,6 +122,7 @@ def sanitize_filename(filename: str) -> str:
         sanitized = '_' + sanitized[1:]
     return sanitized or 'unnamed'
 
+
 def cleanup_file(file_path: str) -> None:
     """清理临时 zip 文件"""
     try:
@@ -116,6 +130,7 @@ def cleanup_file(file_path: str) -> None:
             os.remove(file_path)
     except Exception as e:
         logger.warning(f"fail clean file {file_path}: {e}")
+
 
 def encode_image(image_path: str) -> str:
     """Encode image using base64"""
@@ -132,7 +147,7 @@ def get_infer_result(file_suffix_identifier: str, pdf_name: str, parse_dir: str)
     return None
 
 
-@app.post(path="/file_parse", dependencies=[Depends(limit_concurrency)])
+@app.post(path="/api/file_parse", dependencies=[Depends(limit_concurrency)])
 async def parse_pdf(
         files: List[UploadFile] = File(..., description="Upload pdf, image, or Word files for parsing"),
         output_dir: str = Form("./output", description="Output local directory"),
@@ -190,7 +205,6 @@ async def parse_pdf(
         start_page_id: int = Form(0, description="The starting page for PDF parsing, beginning from 0"),
         end_page_id: int = Form(99999, description="The ending page for PDF parsing, beginning from 0"),
 ):
-
     # 获取命令行配置参数
     config = getattr(app.state, "config", {})
 
@@ -230,7 +244,6 @@ async def parse_pdf(
                     status_code=400,
                     content={"error": f"Unsupported file type: {file_suffix}"}
                 )
-
 
         # 设置语言列表，确保与文件数量一致
         actual_lang_list = lang_list
@@ -305,7 +318,8 @@ async def parse_pdf(
                         images_dir = os.path.join(parse_dir, "images")
                         image_paths = glob.glob(os.path.join(glob.escape(images_dir), "*.jpg"))
                         for image_path in image_paths:
-                            zf.write(image_path, arcname=os.path.join(safe_pdf_name, "images", os.path.basename(image_path)))
+                            zf.write(image_path,
+                                     arcname=os.path.join(safe_pdf_name, "images", os.path.basename(image_path)))
 
             return FileResponse(
                 path=zip_path,
@@ -369,7 +383,6 @@ async def parse_pdf(
 @click.option('--port', default=8000, type=int, help='Server port (default: 8000)')
 @click.option('--reload', is_flag=True, help='Enable auto-reload (development mode)')
 def main(ctx, host, port, reload, **kwargs):
-
     kwargs.update(arg_parse(ctx))
 
     # 将配置参数存储到应用状态中

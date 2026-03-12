@@ -77,7 +77,7 @@ export function useDocumentProcessor() {
   // 配置相关
   const config = reactive<DocumentConfig>({
     maxPages: 1000,
-    backend: 'hybrid-auto-engine',
+    backend: 'pipeline',
     serverUrl: 'http://localhost:30000',
     tableEnable: true,
     formulaEnable: true,
