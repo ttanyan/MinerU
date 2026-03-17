@@ -51,20 +51,25 @@ test = [
     "coverage",
     "fuzzywuzzy"
 ]
+
 vlm = [
     "torch>=2.6.0,<3",
     "transformers>=4.51.1,!=4.57.2,<5.0.0",
     "accelerate>=1.5.1",
 ]
+
 vllm = [
     "vllm>=0.10.1.1,<0.12",
 ]
+
 lmdeploy = [
     "lmdeploy>=0.10.2,<0.12",
 ]
+
 mlx = [
     "mlx-vlm>=0.3.3,<0.4",
 ]
+
 pipeline = [
     "matplotlib>=3.10,<4",
     "ultralytics>=8.3.48,<9",
@@ -80,25 +85,34 @@ pipeline = [
     "transformers>=4.49.0,!=4.51.0,<5.0.0",
     "onnxruntime>1.17.0",
 ]
+
 api = [
     "fastapi",
     "python-multipart",
     "uvicorn",
 ]
+
 gradio = [
     "gradio==5.49.1",
     "gradio-pdf==0.0.22",
 ]
+
 vuex = [
     "nodejs>=16.0.0",
     "npm>=8.0.0",
 ]
+
 core = [
     "mineru[vlm]",
     "mineru[pipeline]",
     "mineru[api]",
     "mineru[gradio]",
+    # 以下三行為新增/調整內容，讓 core 群組明確包含 web 服務運行時依賴
+    "fastapi>=0.115",
+    "python-multipart>=0.0.9",
+    "uvicorn[standard]>=0.30",
 ]
+
 all = [
     "mineru[core]",
     "mineru[mlx] ; sys_platform == 'darwin'",
