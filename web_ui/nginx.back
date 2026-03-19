@@ -1,3 +1,4 @@
+cat > /etc/nginx/conf.d/default.conf << 'EOF'
 server {
     listen       9898;
     server_name  localhost;
@@ -43,3 +44,4 @@ server {
         proxy_read_timeout 300s;
     }
 }
+EOF

@@ -2,7 +2,7 @@ import axios from 'axios'
 
 // 创建 axios 实例
 const request = axios.create({
-  baseURL: '', // 空字符串，使用相对路径
+  baseURL: '',
   timeout: 300000, // 5分钟超时
   headers: {
     'Content-Type': 'application/json'
