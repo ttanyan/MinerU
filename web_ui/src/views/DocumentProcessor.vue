@@ -152,7 +152,8 @@ const {
   backendOptions,
   languageOptions,
   clearAll,
-  processDocument: originalProcessDocument
+  processDocument: originalProcessDocument,
+  handleFileUpload
 } = useDocumentProcessor()
 
 const showSettings = ref(false)
@@ -217,19 +218,19 @@ const triggerUpload = () => {
   }
 }
 
-const handleFileInputChange = (event: Event) => {
+const handleFileInputChange = async (event: Event) => {
   const input = event.target as HTMLInputElement
   if (input.files) {
-    const files = Array.from(input.files)
-    files.forEach(file => {
-      uploadedFiles.value.push(file)
-    })
+    // 使用 handleFileUpload 函数处理文件，包括 Word 转 PDF
+    await handleFileUpload(input.files)
     // 清空input值，允许重复选择同一个文件
     input.value = ''
     // 折叠上传区域
-    isUploadAreaCollapsed.value = true
-    // 自动处理文件
-    processDocument()
+    if (uploadedFiles.value.length > 0) {
+      isUploadAreaCollapsed.value = true
+      // 自动处理文件
+      processDocument()
+    }
   }
 }
 
