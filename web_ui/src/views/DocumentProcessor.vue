@@ -233,19 +233,18 @@ const handleFileInputChange = (event: Event) => {
   }
 }
 
-const handleDrop = (event: DragEvent) => {
+const handleDrop = async (event: DragEvent) => {
   event.preventDefault()
   isDragging.value = false
   
   if (event.dataTransfer?.files) {
-    const files = Array.from(event.dataTransfer.files)
-    files.forEach(file => {
-      uploadedFiles.value.push(file)
-    })
+    await handleFileUpload(event.dataTransfer.files)
     // 折叠上传区域
-    isUploadAreaCollapsed.value = true
-    // 自动处理文件
-    processDocument()
+    if (uploadedFiles.value.length > 0) {
+      isUploadAreaCollapsed.value = true
+      // 自动处理文件
+      processDocument()
+    }
   }
 }
 

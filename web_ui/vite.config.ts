@@ -12,10 +12,9 @@ export default defineConfig({
   server: {
     port: 3000,
     proxy: {
-      '/api': {
-        target: 'http://127.0.0.1:8000',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, '')
+      '/file_parse': {
+        target: 'http://10.100.52.43:8000',
+        changeOrigin: true
       }
     }
   },

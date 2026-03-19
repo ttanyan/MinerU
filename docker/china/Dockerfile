@@ -1,100 +1,76 @@
 # ==========================================
-# 阶段 1: 构建阶段 (Builder)
+# 阶段 1：前端构建 (Node.js Builder)
 # ==========================================
-FROM docker.m.daocloud.io/ubuntu:22.04 AS builder
+FROM node:18-alpine AS frontend-builder
+
+WORKDIR /build
+# 利用镜像缓存：先拷贝 package.json
+COPY web_ui/package*.json ./
+RUN npm config set registry https://registry.npmmirror.com && \
+    npm install
+
+# 拷贝源码并构建
+COPY web_ui/ .
+RUN npm run build
+
+# ==========================================
+# 阶段 2：最终运行环境 (CoreX Runtime)
+# ==========================================
+FROM crpi-vofi3w62lkohhxsp.cn-shanghai.personal.cr.aliyuncs.com/opendatalab-mineru/corex:4.4.0_torch2.7.1_vllm0.11.2_py3.10
 
 ENV DEBIAN_FRONTEND=noninteractive
+ENV MINERU_MODEL_SOURCE=local
 
-# 替换为阿里云镜像源
-RUN sed -i 's/archive.ubuntu.com/mirrors.aliyun.com/g' /etc/apt/sources.list && \
-    sed -i 's/security.ubuntu.com/mirrors.aliyun.com/g' /etc/apt/sources.list
+# 1. 系统级依赖：仅安装运行时必需的字体和工具
+RUN apt-get update && apt-get install -y \
+        fonts-noto-core \
+        fonts-noto-cjk \
+        fontconfig \
+        libgl1-mesa-glx \
+    && fc-cache -fv \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# 安装编译环境、Node.js 及字体依赖
-RUN apt-get update && \
-    apt-get install -y \
-        build-essential curl wget git fontconfig libgl1 \
-        libreoffice-writer libreoffice-core \
-        fonts-noto-core fonts-noto-cjk \
-        python3 python3-pip python3-venv && \
-    curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
-    apt-get install -y nodejs && \
-    fc-cache -fv && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+# 2. Python 依赖安装策略：
+# 使用 --no-deps 确保不覆盖 CoreX 预装的 torch 2.7.1 和 vllm 0.11.2
+RUN python3 -m pip install -U pip -i https://mirrors.aliyun.com/pypi/simple && \
+    python3 -m pip install 'mineru[core]>=2.7.4' --no-deps -i https://mirrors.aliyun.com/pypi/simple && \
+    # 手动补齐 MinerU 运行必需但基础镜像可能缺失的轻量依赖（不会破坏 torch）
+    python3 -m pip install \
+        "numpy==1.26.4" \
+        "opencv-python==4.11.0.86" \
+        "pydantic<2.0" \
+        "modelscope" \
+        "magic-pdf" \
+        -i https://mirrors.aliyun.com/pypi/simple && \
+    python3 -m pip cache purge
 
 WORKDIR /app
+
+# 3. 拷贝项目源码（排除 web_ui 源码以减小体积）
 COPY . .
 
-# 1. 升级基础 Python 构建工具
-RUN pip3 install --upgrade pip setuptools wheel -i https://mirrors.aliyun.com/pypi/simple/
+# ... 前面步骤保持不变 ...
 
-# 2. 预装指定的最新版核心依赖 (解决版本冲突)
-RUN pip3 install \
-    "torch>=2.6.0" \
-    "torchvision" \
-    --index-url https://download.pytorch.org/whl/cpu
+# 4. 从阶段 1 拷贝前端构建产物
+RUN mkdir -p mineru/cli/static/web
+COPY --from=frontend-builder /build/dist/ ./mineru/cli/static/web/
 
-RUN pip3 install \
-    "modelscope>=1.26.0" \
-    "huggingface-hub>=0.32.4" \
-    "mineru-vl-utils>=0.1.19.1" \
-    "qwen-vl-utils>=0.0.14" \
-    "transformers>=4.51.1" \
-    "accelerate>=1.5.1" \
-    -i https://mirrors.aliyun.com/pypi/simple/
-
-# 3. 安装项目及所有可选依赖 [all]
-# 这将自动涵盖 doclayout_yolo==0.0.4 以及图片中显示的 layout/vlm 等所需依赖
-RUN pip3 install -e ".[all]" -i https://mirrors.aliyun.com/pypi/simple/
-
-# 4. 构建阶段预下载所有权重文件 (保证离线可用)
-# 使用项目自带的脚本下载 layout, ocr, mfd, mfr, vlm 等模型
+# 5. 配置文件优化：必须先于模型下载执行
 RUN mkdir -p /root/.cache/modelscope/hub/models && \
-    echo '{"models-dir": "/root/.cache/modelscope/hub/models", "device-mode":"cpu"}' > /root/magic-pdf.json && \
-    export MINERU_CONFIG_PATH=/root/magic-pdf.json && \
-    # 强制输入 'modelscope'
-    echo "modelscope" | PYTHONPATH=/app python3 -m mineru.cli.models_download
-
-# 5. 构建前端 Web UI
-WORKDIR /app/web_ui
-RUN npm install && npm run build
-WORKDIR /app
-RUN mkdir -p mineru/cli/static/web && cp -r web_ui/dist/* mineru/cli/static/web/
-
-# ==========================================
-# 阶段 2: 运行阶段 (Runtime)
-# ==========================================
-FROM docker.m.daocloud.io/ubuntu:22.04 AS runtime
-
-ENV DEBIAN_FRONTEND=noninteractive
-RUN sed -i 's/archive.ubuntu.com/mirrors.aliyun.com/g' /etc/apt/sources.list && \
-    sed -i 's/security.ubuntu.com/mirrors.aliyun.com/g' /etc/apt/sources.list
-
-RUN apt-get update && \
-    apt-get install -y libgl1 libreoffice-writer libreoffice-core \
-    fonts-noto-core fonts-noto-cjk fontconfig python3 python3-pip && \
-    fc-cache -fv && apt-get clean && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
-
-# 从构建阶段拷贝依赖、脚本和预下载的模型
-COPY --from=builder /usr/local/lib/python3.10/dist-packages /usr/local/lib/python3.10/dist-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
-COPY --from=builder /root/.cache/modelscope/hub/models /root/.cache/modelscope/hub/models
-COPY --from=builder /app /app
-
-# 核心修复：注入标准的运行时配置文件，解决 AttributeError
-RUN mkdir -p /root/ && \
     echo '{ \
         "models-dir": "/root/.cache/modelscope/hub/models", \
-        "device-mode": "cpu", \
+        "device-mode": "gpu", \
         "vlm-config": { \
-            "kind": "transformers", \
+            "kind": "vllm", \
             "precision": "fp16" \
         } \
     }' > /root/magic-pdf.json
 
-EXPOSE 8000
+# 6. 模型预下载
+RUN /bin/bash -c "export MINERU_MODEL_SOURCE=local && mineru-models-download -s modelscope -m all"
 
-# 启动服务，明确设置 PYTHONPATH
-ENTRYPOINT ["/bin/sh", "-c", "PYTHONPATH=/app python3 -m mineru.cli.fast_api --host 0.0.0.0 --port 8000"]
+
+
+# 7. 入口点
+ENTRYPOINT ["/bin/bash", "-c", "exec \"$@\"", "--"]
+CMD ["python3", "-m", "mineru.cli.main"]

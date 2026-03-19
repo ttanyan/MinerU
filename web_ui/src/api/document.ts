@@ -59,9 +59,15 @@ export const documentApi = {
     }
     
     return request.post('/file_parse', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
+        headers: {
+            'Content-Type': 'multipart/form-data'
+        }
+    }).then(result => {
+        console.log("解析成功:", result);
+        return result;
+    }).catch(error => {
+        console.error("解析失败:", error);
+        throw error;
     })
   }
 }

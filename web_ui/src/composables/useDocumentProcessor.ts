@@ -1,6 +1,7 @@
 import { ref, reactive } from 'vue'
 import type { Ref } from 'vue'
 import { documentApi, type ParseParams } from '@/api/document'
+import { convertWordToPdf, isWordFile } from '@/utils/wordToPdf'
 
 // 根据上一级标题自动补全下一级标题
 function autoPromoteParagraphsToSubheading(text: string): string {
@@ -119,31 +120,64 @@ export function useDocumentProcessor() {
   ]
   
   // 文件上传处理
-  const handleFileUpload = (files: FileList | null) => {
+  const handleFileUpload = async (files: FileList | null) => {
+    console.log('handleFileUpload called with files:', files)
     if (!files || files.length === 0) return
     
     const validFiles: File[] = []
+    
     for (let i = 0; i < files.length; i++) {
       const file = files[i]
       const fileType = file.type
+      const fileName = file.name.toLowerCase()
       
-      // 验证文件类型
-      if (!fileType.startsWith('image/') && fileType !== 'application/pdf') {
+      console.log('Processing file:', fileName, 'type:', fileType)
+      
+      // 验证文件类型 - 支持 PDF、图片和 Word 文档
+      const isImage = fileType.startsWith('image/')
+      const isPdf = fileType === 'application/pdf'
+      const isWord = fileName.endsWith('.docx') || fileName.endsWith('.doc') || fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      
+      console.log('File type checks - isImage:', isImage, 'isPdf:', isPdf, 'isWord:', isWord)
+      
+      if (!isImage && !isPdf && !isWord) {
         error.value = '不支持的文件类型'
+        console.log('Unsupported file type:', fileName, fileType)
         continue
       }
       
       // 验证文件大小 (100MB)
       if (file.size > 100 * 1024 * 1024) {
         error.value = '文件大小超出限制'
+        console.log('File too large:', fileName, file.size)
         continue
       }
       
-      validFiles.push(file)
+      // 如果是 Word 文档，转换为 PDF
+      if (isWord) {
+        try {
+          isUploading.value = true
+          error.value = '正在将 Word 文档转换为 PDF...'
+          console.log('Converting Word to PDF:', fileName)
+          const pdfFile = await convertWordToPdf(file)
+          console.log('Conversion successful, PDF file:', pdfFile.name, pdfFile.size)
+          validFiles.push(pdfFile)
+          error.value = null
+        } catch (err) {
+          error.value = 'Word 转换为 PDF 失败: ' + (err as Error).message
+          console.error('Conversion failed:', (err as Error).message)
+          continue
+        } finally {
+          isUploading.value = false
+        }
+      } else {
+        validFiles.push(file)
+        console.log('Adding file directly:', fileName)
+      }
     }
     
     uploadedFiles.value = validFiles
-    error.value = null
+    console.log('Final uploaded files:', validFiles.map(f => f.name))
   }
   
   // 清除所有数据

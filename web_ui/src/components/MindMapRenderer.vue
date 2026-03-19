@@ -193,10 +193,22 @@ const downloadMindMap = (format: 'svg' | 'png' = 'svg') => {
       svgCopy.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
     }
     
-    // 确保 SVG 大小正确
+    // 确保思维导图已经完全渲染并适应视图
+    if (mmInstance) {
+      mmInstance.fit()
+    }
+    
+    // 获取 SVG 元素的实际内容大小
     const boundingRect = svg.getBoundingClientRect()
-    svgCopy.setAttribute('width', boundingRect.width.toString())
-    svgCopy.setAttribute('height', boundingRect.height.toString())
+    
+    // 为大型思维导图设置更高的缩放因子
+    const scaleFactor = 5 // 从 3 提高到 5，进一步提高分辨率
+    
+    // 设置 SVG 大小为实际内容大小
+    const svgWidth = boundingRect.width
+    const svgHeight = boundingRect.height
+    svgCopy.setAttribute('width', svgWidth.toString())
+    svgCopy.setAttribute('height', svgHeight.toString())
     
     // 序列化 SVG
     const svgData = new XMLSerializer().serializeToString(svgCopy)
@@ -205,9 +217,12 @@ const downloadMindMap = (format: 'svg' | 'png' = 'svg') => {
     
     if (!ctx) return
     
-    // 设置画布大小
-    canvas.width = boundingRect.width
-    canvas.height = boundingRect.height
+    // 设置画布大小为原始大小的 scaleFactor 倍，提高分辨率
+    canvas.width = svgWidth * scaleFactor
+    canvas.height = svgHeight * scaleFactor
+    
+    // 缩放画布上下文，确保绘制时保持清晰度
+    ctx.scale(scaleFactor, scaleFactor)
     
     // 创建一个图像对象
     const img = new Image()
@@ -215,7 +230,7 @@ const downloadMindMap = (format: 'svg' | 'png' = 'svg') => {
       // 绘制图像到画布
       ctx.drawImage(img, 0, 0)
       
-      // 将画布转换为 PNG
+      // 将画布转换为 PNG，设置质量为最高
       canvas.toBlob((blob) => {
         if (blob) {
           const url = URL.createObjectURL(blob)
@@ -227,7 +242,7 @@ const downloadMindMap = (format: 'svg' | 'png' = 'svg') => {
           document.body.removeChild(a)
           URL.revokeObjectURL(url)
         }
-      }, 'image/png')
+      }, 'image/png', 1.0) // 设置质量为 1.0
     }
     
     // 将 SVG 数据转换为 Data URL
