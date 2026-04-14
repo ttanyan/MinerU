@@ -1,7 +1,7 @@
 import { ref, reactive } from 'vue'
 import type { Ref } from 'vue'
 import { documentApi, type ParseParams } from '@/api/document'
-import { convertWordToPdf, isWordFile } from '@/utils/wordToPdf'
+import { convertWordToPdf } from '@/utils/wordToPdf'
 
 // 根据上一级标题自动补全下一级标题
 function autoPromoteParagraphsToSubheading(text: string): string {
@@ -201,7 +201,7 @@ export function useDocumentProcessor() {
       const params: ParseParams = {
         files: uploadedFiles.value,
         output_dir: './output',
-        lang_list: [config.language],
+        lang_list: config.language,
         backend: config.backend,
         parse_method: config.forceOcr ? 'ocr' : 'auto',
         formula_enable: config.formulaEnable,
